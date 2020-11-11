@@ -1,5 +1,6 @@
 
 data
+network/.ip*
 pretrained
 runs*
 save1.png

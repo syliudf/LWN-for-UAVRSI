@@ -19,12 +19,11 @@ from torch.utils.data import DataLoader
 from loader.load_uavid import uavidloader
 from network.net import deeplab_resnet
 
-
 def get_Hrrs_label():
     return np.asarray(
-                    [
-                      [  0,   0,   0],  # background clutter
-		    [128,   0,   0],  # building
+                      [
+              [  0,   0,   0],  # background clutter
+              [128,   0,   0],  # building
 		      [128,  64, 128],  # road
 		      [  0, 128,   0],  # tree
 		      [128, 128,   0],  # low vegetation
@@ -66,8 +65,6 @@ def tta_inference(inp, model, num_classes=8, scales=[1.0], flip=True):
         resized_img = F.interpolate(inp, size=size, mode='bilinear', align_corners=True,)
         pred = model_inference(model, resized_img.to(inp.device), flip)
         pred = F.interpolate(pred, size=(h, w), mode='bilinear', align_corners=True,)
-        # print(pred.size())
-        # print(preds.size())
         preds += pred
 
     return preds/(len(scales))
@@ -109,29 +106,30 @@ def model_inference(model, image, flip=True):
 
 #     return image
 
-def slide(model, scale_image, num_classes=8, crop_size=512, overlap=1/2, scales=[1.0], flip=True):
+def slide(model, scale_image, num_classes=8, crop_size=512, overlap=1/3, scales=[1.0], flip=True):
 
     N, C, H_, W_ = scale_image.shape
+    print(f"Height: {H_} Width: {W_}")
     
     full_probs = torch.zeros((N, num_classes, H_, W_), device=scale_image.device) #
     count_predictions = torch.zeros((N, num_classes, H_, W_), device=scale_image.device) #
 
-    h_overlap_length = int(overlap*H_)
-    w_overlap_length = int(overlap*W_)
-    # print(f"h_overlap_length:{h_overlap_length}, w_overlap_length:{w_overlap_length}")
+    h_overlap_length = int(overlap*crop_size)
+    w_overlap_length = int(overlap*crop_size)
 
     h = 0
     slide_finish = False
     while not slide_finish:
 
         if h + crop_size <= H_:
-
+            print(f"h: {h}")
             # set row flag
             slide_row = True
             # initial row start
             w = 0
             while slide_row:
                 if w + crop_size <= W_:
+                    print(f" h={h} w={w} -> h'={h+crop_size} w'={w+crop_size}")
                     patch_image = scale_image[:, :, h:h+crop_size, w:w+crop_size]
                     #
                     patch_pred_image = tta_inference(patch_image, model, num_classes=num_classes, scales=scales, flip=flip)
@@ -139,6 +137,7 @@ def slide(model, scale_image, num_classes=8, crop_size=512, overlap=1/2, scales=
                     full_probs[:,:,h:h+crop_size, w:w+crop_size] += patch_pred_image
 
                 else:
+                    print(f" h={h} w={W_-crop_size} -> h'={h+crop_size} w'={W_}")
                     patch_image = scale_image[:, :, h:h+crop_size, W_-crop_size:W_]
                     #
                     patch_pred_image = tta_inference(patch_image, model, num_classes=num_classes, scales=scales, flip=flip)
@@ -149,12 +148,14 @@ def slide(model, scale_image, num_classes=8, crop_size=512, overlap=1/2, scales=
                 w += w_overlap_length
 
         else:
+            print(f"h: {h}")
             # set last row flag
             slide_last_row = True
             # initial row start
             w = 0
             while slide_last_row:
                 if w + crop_size <= W_:
+                    print(f"h={H_-crop_size} w={w} -> h'={H_} w'={w+crop_size}")
                     patch_image = scale_image[:,:,H_-crop_size:H_, w:w+crop_size]
                     #
                     patch_pred_image = tta_inference(patch_image, model, num_classes=num_classes, scales=scales, flip=flip)
@@ -162,6 +163,7 @@ def slide(model, scale_image, num_classes=8, crop_size=512, overlap=1/2, scales=
                     full_probs[:,:,H_-crop_size:H_, w:w+crop_size] += patch_pred_image
 
                 else:
+                    print(f"h={H_-crop_size} w={W_-crop_size} -> h'={H_} w'={W_}")
                     patch_image = scale_image[:,:,H_-crop_size:H_, W_-crop_size:W_]
                     #
                     patch_pred_image = tta_inference(patch_image, model, num_classes=num_classes, scales=scales, flip=flip)
@@ -179,7 +181,7 @@ def slide(model, scale_image, num_classes=8, crop_size=512, overlap=1/2, scales=
 
     return full_probs
     
-def predict_sliding(model, image, num_classes=8, crop_size=512, overlap=1/2, scales=[1.0], flip=True):
+def predict_sliding(model, image, num_classes=8, crop_size=512, overlap=1/3, scales=[1.0], flip=True):
 
     N, C, H, W = image.shape
     # scale_image = checksize(image, crop_size=crop_size)
@@ -252,7 +254,7 @@ def test(testloader, model, savedir, device):
                 image=image,
                 num_classes=8,
                 crop_size=512,
-                overlap=1/3,
+                overlap=3/4,
                 scales=[0.75, 1.0, 1.25],
                 flip=True)
 
@@ -278,7 +280,9 @@ def test(testloader, model, savedir, device):
             # infile.close()
             # outfile.close()
 
-            img_save_path = os.path.join(savedir, img_save_name+'_gt.png')
+            img_save_path = os.path.join(savedir, img_save_name[:5], 'Labels',img_save_name[6:]+'.png')
+            if not os.path.exists(os.path.join(savedir, img_save_name[:5])):
+                os.makedirs(os.path.join(savedir, img_save_name[:5]))
             imageout = Image.fromarray(imageout)
             imageout.save(img_save_path)
 
@@ -311,6 +315,7 @@ def main(input_path_testA, output_path_testA):
                         os=8,
                         pretrained=True
                         ).cuda()
+
     model = torch.nn.DataParallel(model, device_ids=[0])
     # deeplab.gffhead.cls[6] = nn.Conv2d(256, 9, kernel_size=(1, 1), stride=(1, 1))
     # deeplab.auxlayer.conv5[4] = nn.Conv2d(256, 9, kernel_size=(1, 1), stride=(1, 1))
@@ -344,10 +349,10 @@ if __name__ == '__main__':
     import sys
 
 
-    input_path_testA = sys.argv[1]
+    input_path_testA = './data/uavid_crop'
  
 
-    output_path_testA = sys.argv[2]
+    output_path_testA = './data/results/deeplabv3+'
 
 
     cudnn.benchmark = True
