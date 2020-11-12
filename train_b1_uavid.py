@@ -31,7 +31,15 @@ import utils.utils
 
 import warnings
 warnings.filterwarnings('ignore')
-
+model_init = 'b1_up'
+root_init = './data/uavid_crop/'
+batch_size = 4
+max_epochs = 50
+lr_init = 0.004
+classes = 8
+save_dir = './runs_uavid'
+gpu = "2"
+run_id = 'efficientnetb1_ups_4e-3_50'
 
 # setup scheduler
 def adjust_learning_rate(cur_epoch, max_epoch, curEpoch_iter, perEpoch_iter, baselr):
@@ -305,24 +313,24 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Semantic Segmentation...')
 
-    parser.add_argument('--model', default='effnet', type=str)
-    parser.add_argument('--root', default='./data/uavid_crop/', help='data directory')
+    parser.add_argument('--model', default=model_init, type=str)
+    parser.add_argument('--root', default=root_init, help='data directory')
 
-    parser.add_argument('--batch_size', default=8, type=int)
-    parser.add_argument('--max_epochs', type=int, default=80, help='the number of epochs: default 100 ')
-    parser.add_argument('--num_classes', default=8, type=int)
-    parser.add_argument('--lr', default=0.002, type=float)
+    parser.add_argument('--batch_size', default=batch_size, type=int)
+    parser.add_argument('--max_epochs', type=int, default=max_epochs, help='the number of epochs: default 100 ')
+    parser.add_argument('--num_classes', default=classes, type=int)
+    parser.add_argument('--lr', default=lr_init, type=float)
     parser.add_argument('--weight_decay', default=4e-5, type=float)
     parser.add_argument('--workers', type=int, default=2, help=" the number of parallel threads")
     parser.add_argument('--show_interval', default=10, type=int)
     parser.add_argument('--show_val_interval', default=1000, type=int)
-    parser.add_argument('--savedir', default="./runs_uavid/b1_2e-3/", help="directory to save the model snapshot")
+    parser.add_argument('--savedir', default=save_dir, help="directory to save the model snapshot")
     # parser.add_argument('--logFile', default= "log.txt", help = "storing the training and validation logs")
-    parser.add_argument('--gpu', type=str, default="3", help="default GPU devices (3)")
+    parser.add_argument('--gpu', type=str, default=gpu, help="default GPU devices (3)")
 
     args = parser.parse_args()
 
-    run_id = 'b1_baseline_uavid'
+    run_id = run_id
     print('Now run_id {}'.format(run_id))
     args.savedir = os.path.join(args.savedir, str(run_id))
     print(args.savedir)
