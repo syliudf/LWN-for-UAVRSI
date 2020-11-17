@@ -8,7 +8,8 @@ import math
 import random
 import argparse
 import numpy as np
-
+from collections import OrderedDict
+os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -18,6 +19,7 @@ import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader
 from loader.load_uavid import uavidloader
 from network.net import deeplab_resnet
+from network.efficientnet.Efficientnet_uav import EfficientNet_1_up
 
 def get_Hrrs_label():
     return np.asarray(
@@ -109,27 +111,27 @@ def model_inference(model, image, flip=True):
 def slide(model, scale_image, num_classes=8, crop_size=512, overlap=1/3, scales=[1.0], flip=True):
 
     N, C, H_, W_ = scale_image.shape
-    print(f"Height: {H_} Width: {W_}")
+    # print(f"Height: {H_} Width: {W_}")
     
     full_probs = torch.zeros((N, num_classes, H_, W_), device=scale_image.device) #
     count_predictions = torch.zeros((N, num_classes, H_, W_), device=scale_image.device) #
 
-    h_overlap_length = int(overlap*crop_size)
-    w_overlap_length = int(overlap*crop_size)
+    h_overlap_length = int((1-overlap)*crop_size) #
+    w_overlap_length = int((1-overlap)*crop_size) # 
 
     h = 0
     slide_finish = False
     while not slide_finish:
 
         if h + crop_size <= H_:
-            print(f"h: {h}")
+            # print(f"h: {h}")
             # set row flag
             slide_row = True
             # initial row start
             w = 0
             while slide_row:
                 if w + crop_size <= W_:
-                    print(f" h={h} w={w} -> h'={h+crop_size} w'={w+crop_size}")
+                    # print(f" h={h} w={w} -> h'={h+crop_size} w'={w+crop_size}")
                     patch_image = scale_image[:, :, h:h+crop_size, w:w+crop_size]
                     #
                     patch_pred_image = tta_inference(patch_image, model, num_classes=num_classes, scales=scales, flip=flip)
@@ -137,7 +139,7 @@ def slide(model, scale_image, num_classes=8, crop_size=512, overlap=1/3, scales=
                     full_probs[:,:,h:h+crop_size, w:w+crop_size] += patch_pred_image
 
                 else:
-                    print(f" h={h} w={W_-crop_size} -> h'={h+crop_size} w'={W_}")
+                    # print(f" h={h} w={W_-crop_size} -> h'={h+crop_size} w'={W_}")
                     patch_image = scale_image[:, :, h:h+crop_size, W_-crop_size:W_]
                     #
                     patch_pred_image = tta_inference(patch_image, model, num_classes=num_classes, scales=scales, flip=flip)
@@ -148,14 +150,14 @@ def slide(model, scale_image, num_classes=8, crop_size=512, overlap=1/3, scales=
                 w += w_overlap_length
 
         else:
-            print(f"h: {h}")
+            # print(f"h: {h}")
             # set last row flag
             slide_last_row = True
             # initial row start
             w = 0
             while slide_last_row:
                 if w + crop_size <= W_:
-                    print(f"h={H_-crop_size} w={w} -> h'={H_} w'={w+crop_size}")
+                    # print(f"h={H_-crop_size} w={w} -> h'={H_} w'={w+crop_size}")
                     patch_image = scale_image[:,:,H_-crop_size:H_, w:w+crop_size]
                     #
                     patch_pred_image = tta_inference(patch_image, model, num_classes=num_classes, scales=scales, flip=flip)
@@ -163,7 +165,7 @@ def slide(model, scale_image, num_classes=8, crop_size=512, overlap=1/3, scales=
                     full_probs[:,:,H_-crop_size:H_, w:w+crop_size] += patch_pred_image
 
                 else:
-                    print(f"h={H_-crop_size} w={W_-crop_size} -> h'={H_} w'={W_}")
+                    # print(f"h={H_-crop_size} w={W_-crop_size} -> h'={H_} w'={W_}")
                     patch_image = scale_image[:,:,H_-crop_size:H_, W_-crop_size:W_]
                     #
                     patch_pred_image = tta_inference(patch_image, model, num_classes=num_classes, scales=scales, flip=flip)
@@ -231,9 +233,11 @@ def test(testloader, model, savedir, device):
     total_batches = len(testloader)
     with torch.no_grad():
         for idx, batch in enumerate(testloader):
+            
             # load data
             # print(batch)
             image, _,  name = batch
+            print(name)
             image = image.to(device)
             N, C, H, W = image.shape
 
@@ -248,13 +252,13 @@ def test(testloader, model, savedir, device):
             #         flip=True)
             # else:
                 # slide.
-            print(f"H={H} and W={W} using slide.")
+            # print(f"H={H} and W={W} using slide.")
             output = predict_sliding(
                 model=model,
                 image=image,
                 num_classes=8,
                 crop_size=512,
-                overlap=3/4,
+                overlap=1/4,
                 scales=[0.75, 1.0, 1.25],
                 flip=True)
 
@@ -280,7 +284,7 @@ def test(testloader, model, savedir, device):
             # infile.close()
             # outfile.close()
 
-            img_save_path = os.path.join(savedir, img_save_name[:5], 'Labels',img_save_name[6:]+'.png')
+            img_save_path = os.path.join(savedir, img_save_name[:5], img_save_name[6:]+'.png')
             if not os.path.exists(os.path.join(savedir, img_save_name[:5])):
                 os.makedirs(os.path.join(savedir, img_save_name[:5]))
             imageout = Image.fromarray(imageout)
@@ -309,19 +313,31 @@ def main(input_path_testA, output_path_testA):
     # testB_loader = DataLoader(testB_set, batch_size=1, shuffle=False, num_workers=1, pin_memory=True)
 
     # deeplab = encoding.models.get_model('gffnet_ResNeSt101_ADE', pretrained=False)
-    model = deeplab_resnet.DeepLabv3_plus(
-                        nInputChannels=3,
-                        n_classes=8,
-                        os=8,
-                        pretrained=True
-                        ).cuda()
+    # model = deeplab_resnet.DeepLabv3_plus(
+    #                     nInputChannels=3,
+    #                     n_classes=8,
+    #                     os=8,
+    #                     pretrained=True
+    #                     ).cuda()
 
-    model = torch.nn.DataParallel(model, device_ids=[0])
+    # model = torch.nn.DataParallel(model, device_ids=[0])
     # deeplab.gffhead.cls[6] = nn.Conv2d(256, 9, kernel_size=(1, 1), stride=(1, 1))
     # deeplab.auxlayer.conv5[4] = nn.Conv2d(256, 9, kernel_size=(1, 1), stride=(1, 1))
+    # print(checkpoint)
+    model = EfficientNet_1_up.from_name('efficientnet-b1').cuda()
 
-    checkpoint = torch.load('runs_uavid/deeplabv3+_res101_4e-3/deeplanb3+bs4gpu4/model.pth')
-    model.load_state_dict(checkpoint)
+
+    checkpoint = torch.load('runs_uavid/efficientnetb1_ups_4e-3_50/b1_upbs8gpu2/model.pth',map_location="cuda:0")
+    new_state_dict = OrderedDict()
+    for k, v in checkpoint.items():
+        name = k[7:] # remove 'module.'
+        new_state_dict[name] = v
+    model.load_state_dict(new_state_dict)
+    # model.load_state_dict(checkpoint) 
+
+    
+    
+    
     deeplab = model.to(device)
 
     start = time.time()
@@ -352,7 +368,7 @@ if __name__ == '__main__':
     input_path_testA = './data/uavid_crop'
  
 
-    output_path_testA = './data/results/deeplabv3+'
+    output_path_testA = './data/results/b1up'
 
 
     cudnn.benchmark = True

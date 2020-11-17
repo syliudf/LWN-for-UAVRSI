@@ -19,6 +19,7 @@ import numpy as np
 from network.efficientnet.model import EfficientNet
 
 from network.efficientnet.Efficientnet_uav import EfficientNet_1_up
+from network.efficientnet.Efficientnet_uav import EfficientNet_1_nofusion
 import torch.optim as optim
 
 from loader.load_uavid import uavidloader
@@ -31,15 +32,15 @@ import utils.utils
 
 import warnings
 warnings.filterwarnings('ignore')
-model_init = 'b1_up'
+model_init = 'b1_nofusion'
 root_init = './data/uavid_crop/'
-batch_size = 4
+batch_size = 8
 max_epochs = 50
 lr_init = 0.004
 classes = 8
 save_dir = './runs_uavid'
-gpu = "2"
-run_id = 'efficientnetb1_ups_4e-3_50'
+gpu = "0"
+run_id = 'efficientnetb1_nofusion_4e-3_50'
 
 # setup scheduler
 def adjust_learning_rate(cur_epoch, max_epoch, curEpoch_iter, perEpoch_iter, baselr):
@@ -185,9 +186,26 @@ def main(args, logger):
     # setup model
     print('======> building network')
     logger.info('======> building network')
-    model = EfficientNet_1_up.from_name('efficientnet-b1').cuda()
+    model = EfficientNet_1_nofusion.from_name('efficientnet-b1').cuda()
+    # model = torch.hub.load('rwightman/gen-efficientnet-pytorch', 'efficientnet_b1', pretrained=True)
+    checkpoint = torch.load('./pretrained/b1_nofusion.pth').state_dict()
+
+    transfer = 0
+
+    if transfer:
+        
+        model_dict = model.state_dict()
+        new_dict = {k: v for k,v in model_dict if k in checkpoint}
+        model_dict.update(new_dict)
+        model.load_state_dict(model_dict)
+
+    model.load_state_dict(checkpoint)
+
+
     # model = EfficientNet_1_up.from_name('efficientnet-b1').cuda()
-    # model_dict = model.state_dict()
+    # checkpoint = torch.load('./pretrained/b1_up.pth').state_dict()    
+
+    # 
     # checkpoint = torch.load('./runs_uavid/baseline/b1_baseline_uavid/effnetbs8gpu0/model.pth')
 
 
@@ -202,17 +220,13 @@ def main(args, logger):
         #
 
     # model_dict = model.state_dict()
-    checkpoint = torch.load('./pretrained/b1_up.pth').state_dict()    
     
-    model.load_state_dict(checkpoint)
+    
+    # model.load_state_dict(checkpoint)
     if torch.cuda.device_count() > 1:
 
         device_ids = list(map(int, args.gpu.split(',')))
-#     model = FCNRes101().cuda(device_ids[0])
-    # model = UNet(n_channels=3, n_classes=6,).cuda(device_ids[0])
         model = torch.nn.DataParallel(model, device_ids=device_ids)
-    
-#     print(model)
 
     print("======> computing network parameters")
     logger.info("======> computing network parameters")
@@ -278,7 +292,7 @@ def main(args, logger):
                     best_overall = score["Overall Acc : \t"]
                     # save model in best overall Acc
                     model_file_name = args.savedir + '/model.pth'
-                    torch.save(model.state_dict(), model_file_name)
+                    torch.save(model.module.state_dict(), model_file_name)
                     best_epoch = epoch
 
                 if score["Mean F1 : \t"] > best_F1:

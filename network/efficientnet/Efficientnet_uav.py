@@ -355,69 +355,158 @@ class EfficientNet_1_up(nn.Module):
             raise ValueError('model_name should be one of: ' + ', '.join(valid_models))
 
 
-class PAM_Module(Module):
-    """ Position attention module"""
-    #Ref from SAGAN
-    def __init__(self, in_dim):
-        super(PAM_Module, self).__init__()
-        self.chanel_in = in_dim
 
-        self.query_conv = Conv2d(in_channels=in_dim, out_channels=in_dim//8, kernel_size=1)
-        self.key_conv = Conv2d(in_channels=in_dim, out_channels=in_dim//8, kernel_size=1)
-        self.value_conv = Conv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
-        self.gamma = Parameter(torch.zeros(1))
+class EfficientNet_1_nofusion(nn.Module):
+    """
+    An EfficientNet model. Most easily loaded with the .from_name or .from_pretrained methods
 
-        self.softmax = Softmax(dim=-1)
-    def forward(self, x):
-        """
-            inputs :
-                x : input feature maps( B X C X H X W)
-            returns :
-                out : attention value + input feature
-                attention: B X (HxW) X (HxW)
-        """
-        m_batchsize, C, height, width = x.size()
-        proj_query = self.query_conv(x).view(m_batchsize, -1, width*height).permute(0, 2, 1)
-        proj_key = self.key_conv(x).view(m_batchsize, -1, width*height)
-        energy = torch.bmm(proj_query, proj_key)
-        attention = self.softmax(energy)
-        proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
+    Args:
+        blocks_args (list): A list of BlockArgs to construct blocks
+        global_params (namedtuple): A set of GlobalParams shared between blocks
 
-        out = torch.bmm(proj_value, attention.permute(0, 2, 1))
-        out = out.view(m_batchsize, C, height, width)
+    Example:
+        model = EfficientNet.from_pretrained('efficientnet-b0')
 
-        out = self.gamma*out + x
-        return out
+    """
+
+    def __init__(self, blocks_args=None, global_params=None):
+        super().__init__()
+        assert isinstance(blocks_args, list), 'blocks_args should be a list'
+        assert len(blocks_args) > 0, 'block args must be greater than 0'
+        self._global_params = global_params
+        self._blocks_args = blocks_args
+
+        # Get static or dynamic convolution depending on image size
+        Conv2d = get_same_padding_conv2d(image_size=global_params.image_size)
+
+        # Batch norm parameters
+        bn_mom = 1 - self._global_params.batch_norm_momentum
+        bn_eps = self._global_params.batch_norm_epsilon
+
+        # Stem
+        in_channels = 3  # rgb
+        out_channels = round_filters(32, self._global_params)  # number of output channels
+        self._conv_stem = Conv2d(in_channels, out_channels, kernel_size=3, stride=2, bias=False)
+        self._bn0 = nn.BatchNorm2d(num_features=out_channels, momentum=bn_mom, eps=bn_eps)
+        self._swish = MemoryEfficientSwish()
+        # Build blocks
+        self._blocks = nn.ModuleList([])
+        for block_args in self._blocks_args:
+
+            # Update block input and output filters based on depth multiplier.
+            block_args = block_args._replace(
+                input_filters=round_filters(block_args.input_filters, self._global_params),
+                output_filters=round_filters(block_args.output_filters, self._global_params),
+                num_repeat=round_repeats(block_args.num_repeat, self._global_params)
+            )
+
+            # The first block needs to take care of stride and filter size increase.
+            self._blocks.append(MBConvBlock(block_args, self._global_params))
+            if block_args.num_repeat > 1:
+                block_args = block_args._replace(input_filters=block_args.output_filters, stride=1)
+            for _ in range(block_args.num_repeat - 1):
+                self._blocks.append(MBConvBlock(block_args, self._global_params))
+
+        # Head
+        # in_channels = block_args.output_filters  # output of final block
+        # out_channels = round_filters(320, self._global_params)
+        # self._conv_head = Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
+        # self._bn1 = nn.BatchNorm2d(num_features=out_channels, momentum=bn_mom, eps=bn_eps)
+
+        # Final linear layer
+        # self._avg_pooling = nn.AdaptiveAvgPool2d(1)
+        # self._dropout = nn.Dropout(self._global_params.dropout_rate)
+        # self._fc = nn.Linear(out_channels, self._global_params.num_classes)
+        self._swish = MemoryEfficientSwish()
+        self.up8x = nn.Upsample(scale_factor=8, mode='bilinear', align_corners=True)
+        self.up4x = nn.Upsample(scale_factor=4, mode='bilinear', align_corners=True)
+        # self.conv_744_320 = double_conv(744, 320)
+        self.outconv_320_8 = outconv_8(320, 8)
+        self._swish = MemoryEfficientSwish()
+
+    def set_swish(self, memory_efficient=True):
+        """Sets swish function as memory efficient (for training) or standard (for export)"""
+        self._swish = MemoryEfficientSwish() if memory_efficient else Swish()
+        for block in self._blocks:
+            block.set_swish(memory_efficient)
 
 
-class CAM_Module(Module):
-    """ Channel attention module"""
-    def __init__(self, in_dim):
-        super(CAM_Module, self).__init__()
-        self.chanel_in = in_dim
+    def extract_features(self, inputs):
+        """ Returns output of the final convolution layer """
+
+        # Stem
+        x = self._swish(self._bn0(self._conv_stem(inputs)))
+
+        # Blocks
+        for idx, block in enumerate(self._blocks):
+            # print(idx)
+            drop_connect_rate = self._global_params.drop_connect_rate
+            if drop_connect_rate:
+                drop_connect_rate *= float(idx) / len(self._blocks)
+            x = block(x, drop_connect_rate=drop_connect_rate)
+            # print(x.size())
+            # print(x.size())
+
+            # print("{},{}".format(idx,x.size()))
+
+        # Head
+        # x = self._swish(self._bn1(self._conv_head(x)))
+
+        return x
+
+    def forward(self, inputs):
+        """ Calls extract_features to extract features, applies final linear layer, and returns logits. """
+        bs = inputs.size(0)
+        # Convolution layers
+        x = self.extract_features(inputs)
+
+        # Pooling and final linear layer
+        # print(x_80.size())
 
 
-        self.gamma = Parameter(torch.zeros(1))
-        self.softmax  = Softmax(dim=-1)
-    def forward(self,x):
-        """
-            inputs :
-                x : input feature maps( B X C X H X W)
-            returns :
-                out : attention value + input feature
-                attention: B X C X C
-        """
-        m_batchsize, C, height, width = x.size()
-        proj_query = x.view(m_batchsize, C, -1)
-        proj_key = x.view(m_batchsize, C, -1).permute(0, 2, 1)
-        energy = torch.bmm(proj_query, proj_key)
-        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy)-energy
-        attention = self.softmax(energy_new)
-        proj_value = x.view(m_batchsize, C, -1)
+        x = self.up4x(x)
+    
+        x_out = x
 
-        out = torch.bmm(attention, proj_value)
-        out = out.view(m_batchsize, C, height, width)
+        x_out = self.outconv_320_8(x_out)
+        x_out = self.up8x(x_out)
+        return x_out
 
-        out = self.gamma*out + x
-        return out
+    @classmethod
+    def from_name(cls, model_name, override_params=None):
+        cls._check_model_name_is_valid(model_name)
+        blocks_args, global_params = get_model_params(model_name, override_params)
+        return cls(blocks_args, global_params)
 
+    @classmethod
+    def from_pretrained(cls, model_name, num_classes=1000, in_channels = 3):
+        model = cls.from_name(model_name, override_params={'num_classes': num_classes})
+        load_pretrained_weights(model, model_name, load_fc=(num_classes == 1000))
+        if in_channels != 3:
+            Conv2d = get_same_padding_conv2d(image_size = model._global_params.image_size)
+            out_channels = round_filters(32, model._global_params)
+            model._conv_stem = Conv2d(in_channels, out_channels, kernel_size=3, stride=2, bias=False)
+        return model
+    
+    @classmethod
+    def from_pretrained(cls, model_name, num_classes=1000):
+        model = cls.from_name(model_name, override_params={'num_classes': num_classes})
+        load_pretrained_weights(model, model_name, load_fc=(num_classes == 1000))
+
+        return model
+
+    @classmethod
+    def get_image_size(cls, model_name):
+        cls._check_model_name_is_valid(model_name)
+        _, _, res, _ = efficientnet_params(model_name)
+        return res
+
+    @classmethod
+    def _check_model_name_is_valid(cls, model_name, also_need_pretrained_weights=False):
+        """ Validates model name. None that pretrained weights are only available for
+        the first four models (efficientnet-b{i} for i in 0,1,2,3) at the moment. """
+        # num_models = 4 if also_need_pretrained_weights else 8
+        num_models = 8
+        valid_models = ['efficientnet-b'+str(i) for i in range(num_models)]
+        if model_name not in valid_models:
+            raise ValueError('model_name should be one of: ' + ', '.join(valid_models))
