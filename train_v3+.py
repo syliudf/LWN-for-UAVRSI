@@ -28,15 +28,15 @@ import utils.utils
 import warnings
 warnings.filterwarnings('ignore')
 # hyperparams settings
-model_init = 'deeplanb3+'
-root_init = './data/uavid_crop/'
+model_init = 'deeplab3+'
+root_init = './data/uavid_crop_25/'
 batch_size = 4
-max_epochs = 30
+max_epochs = 100
 lr_init = 0.004
 classes = 8
 save_dir = './runs_uavid'
-gpu = "3"
-run_id = 'deeplabv3+_res101_4e-3_50-100'
+gpu = "7"
+run_id = 'deeplabv3+_res101_4e-3_100'
 
 # setup scheduler
 def adjust_learning_rate(cur_epoch, max_epoch, curEpoch_iter, perEpoch_iter, baselr):
@@ -188,16 +188,16 @@ def main(args, logger):
                         pretrained=True
                         ).cuda()
                         
-    checkpoint = torch.load('runs_uavid/deeplabv3+_res101_4e-3/deeplanb3+bs4gpu4/model.pth')
+    #checkpoint = torch.load('runs_uavid/deeplabv3+_res101_4e-3/deeplanb3+bs4gpu4/model.pth')
     if torch.cuda.device_count() > 1:
     
         device_ids = list(map(int, args.gpu.split(',')))
-    model = torch.nn.DataParallel(model, device_ids=device_ids)
-    model.load_state_dict(checkpoint)
+        model = torch.nn.DataParallel(model, device_ids=device_ids)
+    #model.load_state_dict(checkpoint)
 
 #     model = FCNRes101().cuda(device_ids[0])
     # model = UNet(n_channels=3, n_classes=6,).cuda(device_ids[0])
-    model = torch.nn.DataParallel(model, device_ids=device_ids)
+    #model = torch.nn.DataParallel(model, device_ids=device_ids)
     
 #     print(model)
 

@@ -19,7 +19,7 @@ import numpy as np
 from network.efficientnet.model import EfficientNet
 
 from network.efficientnet.Efficientnet_uav import EfficientNet_1_up
-from network.efficientnet.Efficientnet_uav import EfficientNet_1_nofusion
+from network.efficientnet.Efficientnet_DAN import EfficientNet_1_Nof
 import torch.optim as optim
 
 from loader.load_uavid import uavidloader
@@ -32,15 +32,16 @@ import utils.utils
 
 import warnings
 warnings.filterwarnings('ignore')
-model_init = 'b1_nofusion'
-root_init = './data/uavid_crop/'
+model_init = 'b1_nof_100'
+root_init = './data/uavid_crop_25/'
 batch_size = 8
-max_epochs = 50
+max_epochs = 100
 lr_init = 0.004
 classes = 8
 save_dir = './runs_uavid'
-gpu = "0"
-run_id = 'efficientnetb1_nofusion_4e-3_50'
+gpu = "4"
+run_id = 'b1_nof_4e-3_100'
+model_type = "nof"
 
 # setup scheduler
 def adjust_learning_rate(cur_epoch, max_epoch, curEpoch_iter, perEpoch_iter, baselr):
@@ -186,9 +187,15 @@ def main(args, logger):
     # setup model
     print('======> building network')
     logger.info('======> building network')
-    model = EfficientNet_1_nofusion.from_name('efficientnet-b1').cuda()
-    # model = torch.hub.load('rwightman/gen-efficientnet-pytorch', 'efficientnet_b1', pretrained=True)
-    checkpoint = torch.load('./pretrained/b1_nofusion.pth').state_dict()
+    model = EfficientNet_1_Nof.from_name('efficientnet-b1').cuda()
+    checkpoint = torch.load('./pretrained/b1_dan_nof.pth').state_dict()
+    
+
+
+
+    # model = EfficientNet_1_up.from_name('efficientnet-b1').cuda()
+    # # model = torch.hub.load('rwightman/gen-efficientnet-pytorch', 'efficientnet_b1', pretrained=True)
+    # checkpoint = torch.load('./pretrained/b1_up.pth').state_dict()
 
     transfer = 0
 
@@ -287,13 +294,14 @@ def main(args, logger):
                 
                 if score["Mean IoU : \t"] > best_mIoU:
                     best_mIoU = score["Mean IoU : \t"]
+                    model_file_name = args.savedir + '/model.pth'
+                    torch.save(model.module.state_dict(), model_file_name)
+                    best_epoch = epoch
                 
                 if score["Overall Acc : \t"] > best_overall:
                     best_overall = score["Overall Acc : \t"]
                     # save model in best overall Acc
-                    model_file_name = args.savedir + '/model.pth'
-                    torch.save(model.module.state_dict(), model_file_name)
-                    best_epoch = epoch
+                    
 
                 if score["Mean F1 : \t"] > best_F1:
                     best_F1 = score["Mean F1 : \t"]
@@ -302,6 +310,11 @@ def main(args, logger):
                 print(f"best overall : {best_overall}")
                 print(f"best F1: {best_F1}")
                 print(f"best epoch: {best_epoch}")
+                logger.info('best mean IoU: {}'.format(best_mIoU))
+                logger.info('best overall: {}'.format(best_overall))
+                logger.info('best F1: {}'.format(best_F1))
+                logger.info('best epoch: {}'.format(best_epoch))
+                
 
 #            #save the model
 #            model_file_name = args.savedir +'/model.pth'

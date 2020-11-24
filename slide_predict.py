@@ -9,7 +9,7 @@ import random
 import argparse
 import numpy as np
 from collections import OrderedDict
-os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -19,7 +19,7 @@ import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader
 from loader.load_uavid import uavidloader
 from network.net import deeplab_resnet
-from network.efficientnet.Efficientnet_uav import EfficientNet_1_up
+from network.efficientnet.Efficientnet_DAN import EfficientNet_1_Nof
 
 def get_Hrrs_label():
     return np.asarray(
@@ -284,13 +284,13 @@ def test(testloader, model, savedir, device):
             # infile.close()
             # outfile.close()
 
-            img_save_path = os.path.join(savedir, img_save_name[:5], img_save_name[6:]+'.png')
-            if not os.path.exists(os.path.join(savedir, img_save_name[:5])):
-                os.makedirs(os.path.join(savedir, img_save_name[:5]))
+            img_save_path = os.path.join(savedir, img_save_name[:5], 'Labels', img_save_name[6:]+'.png')
+            # if not os.path.exists(os.path.join(savedir, img_save_name[:5])):
+            #     os.makedirs(os.path.join(savedir, img_save_name[:5]))
             imageout = Image.fromarray(imageout)
             imageout.save(img_save_path)
 
-def main(input_path_testA, output_path_testA):
+def main(input_path_testA, output_path_testA, model_path):
 
     cudnn.enabled = True     # Enables bencnmark mode in cudnn, to enable the inbuilt
     cudnn.benchmark = True   # cudnn auto-tuner to find the best algorithm to use for
@@ -324,16 +324,16 @@ def main(input_path_testA, output_path_testA):
     # deeplab.gffhead.cls[6] = nn.Conv2d(256, 9, kernel_size=(1, 1), stride=(1, 1))
     # deeplab.auxlayer.conv5[4] = nn.Conv2d(256, 9, kernel_size=(1, 1), stride=(1, 1))
     # print(checkpoint)
-    model = EfficientNet_1_up.from_name('efficientnet-b1').cuda()
+    model = EfficientNet_1_Nof.from_name('efficientnet-b1').cuda()
 
 
-    checkpoint = torch.load('runs_uavid/efficientnetb1_ups_4e-3_50/b1_upbs8gpu2/model.pth',map_location="cuda:0")
-    new_state_dict = OrderedDict()
-    for k, v in checkpoint.items():
-        name = k[7:] # remove 'module.'
-        new_state_dict[name] = v
-    model.load_state_dict(new_state_dict)
-    # model.load_state_dict(checkpoint) 
+    checkpoint = torch.load(model_path ,map_location="cuda:0")
+    # new_state_dict = OrderedDict()
+    # for k, v in checkpoint.items():
+    #     name = k[7:] # remove 'module.'
+    #     new_state_dict[name] = v
+    # model.load_state_dict(new_state_dict)
+    model.load_state_dict(checkpoint) 
 
     
     
@@ -368,10 +368,12 @@ if __name__ == '__main__':
     input_path_testA = './data/uavid_crop'
  
 
-    output_path_testA = './data/results/b1up'
+    output_path_testA = './data/results/b1upNof'
+
+    model_path = 'runs_uavid/b1_nof_4e-3_100/b1_nof_100bs8gpu4/model.pth'
 
 
     cudnn.benchmark = True
     cudnn.enabled = True
 
-    main(input_path_testA,  output_path_testA)
+    main(input_path_testA,  output_path_testA, model_path)
