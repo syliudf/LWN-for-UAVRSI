@@ -32,15 +32,15 @@ import utils.utils
 
 import warnings
 warnings.filterwarnings('ignore')
-model_init = 'b1_nof_100'
+model_init = 'b1_nof_100_2'
 root_init = './data/uavid_crop_25/'
 batch_size = 8
 max_epochs = 100
 lr_init = 0.004
 classes = 8
 save_dir = './runs_uavid'
-gpu = "4"
-run_id = 'b1_nof_4e-3_100'
+gpu = "2"
+run_id = 'b1_nof_4e-3_100_2'
 model_type = "nof"
 
 # setup scheduler
@@ -179,7 +179,7 @@ def main(args, logger):
 
     kwargs = {'num_workers': args.workers, 'pin_memory': True}
     train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True, **kwargs)
-    test_loader = DataLoader(test_set, batch_size=1, shuffle=False, **kwargs)
+    test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, **kwargs)
 
     # setup optimization criterion
     criterion = utils.utils.cross_entropy2d

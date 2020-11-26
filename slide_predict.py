@@ -9,7 +9,7 @@ import random
 import argparse
 import numpy as np
 from collections import OrderedDict
-os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -313,27 +313,27 @@ def main(input_path_testA, output_path_testA, model_path):
     # testB_loader = DataLoader(testB_set, batch_size=1, shuffle=False, num_workers=1, pin_memory=True)
 
     # deeplab = encoding.models.get_model('gffnet_ResNeSt101_ADE', pretrained=False)
-    # model = deeplab_resnet.DeepLabv3_plus(
-    #                     nInputChannels=3,
-    #                     n_classes=8,
-    #                     os=8,
-    #                     pretrained=True
-    #                     ).cuda()
+    model = deeplab_resnet.DeepLabv3_plus(
+                        nInputChannels=3,
+                        n_classes=8,
+                        os=8,
+                        pretrained=True
+                        ).cuda()
 
     # model = torch.nn.DataParallel(model, device_ids=[0])
     # deeplab.gffhead.cls[6] = nn.Conv2d(256, 9, kernel_size=(1, 1), stride=(1, 1))
     # deeplab.auxlayer.conv5[4] = nn.Conv2d(256, 9, kernel_size=(1, 1), stride=(1, 1))
     # print(checkpoint)
-    model = EfficientNet_1_Nof.from_name('efficientnet-b1').cuda()
+    # model = EfficientNet_1_Nof.from_name('efficientnet-b1').cuda()
 
 
     checkpoint = torch.load(model_path ,map_location="cuda:0")
-    # new_state_dict = OrderedDict()
-    # for k, v in checkpoint.items():
-    #     name = k[7:] # remove 'module.'
-    #     new_state_dict[name] = v
-    # model.load_state_dict(new_state_dict)
-    model.load_state_dict(checkpoint) 
+    new_state_dict = OrderedDict()
+    for k, v in checkpoint.items():
+        name = k[7:] # remove 'module.'
+        new_state_dict[name] = v
+    model.load_state_dict(new_state_dict)
+    # model.load_state_dict(checkpoint) 
 
     
     
@@ -368,9 +368,9 @@ if __name__ == '__main__':
     input_path_testA = './data/uavid_crop'
  
 
-    output_path_testA = './data/results/b1upNof'
+    output_path_testA = './data/results/dplbv3+'
 
-    model_path = 'runs_uavid/b1_nof_4e-3_100/b1_nof_100bs8gpu4/model.pth'
+    model_path = 'runs_uavid/deeplabv3+_res101_4e-3_100/deeplab3+bs4gpu7/model.pth'
 
 
     cudnn.benchmark = True

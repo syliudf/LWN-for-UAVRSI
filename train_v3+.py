@@ -173,7 +173,7 @@ def main(args, logger):
 
     kwargs = {'num_workers': args.workers, 'pin_memory': True}
     train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True, **kwargs)
-    test_loader = DataLoader(test_set, batch_size=1, shuffle=False, **kwargs)
+    test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, **kwargs)
 
     # setup optimization criterion
     criterion = utils.utils.cross_entropy2d
