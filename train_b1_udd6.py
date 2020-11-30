@@ -21,10 +21,10 @@ from network.efficientnet.model import EfficientNet
 
 from network.efficientnet.Efficientnet_uav import EfficientNet_1_up
 from network.efficientnet.Efficientnet_DAN import EfficientNet_1_Nof
-from network.efficientnet.Efficientnet_DAN import EfficientNet_1_DAN
+from network.efficientnet.Efficientnet_DAN import EfficientNet_1_DAN                                
 import torch.optim as optim
 
-from loader.load_uavid import uavidloader
+from loader.load_udd6 import udd6loader
 from torch.utils.data import DataLoader
 from metrics.metrics_uavid import runningScore, averageMeter
 import torch.backends.cudnn as cudnn
@@ -34,15 +34,15 @@ import utils.utils
 
 import warnings
 warnings.filterwarnings('ignore')
-model_init = 'b1_dan_100_3'
-root_init = './data/uavid_crop_25/'
+model_init = 'b1_up_100'
+root_init = './data/udd6_crop/'
 batch_size = 8
 max_epochs = 100
 lr_init = 0.004
-classes = 8
-save_dir = './runs_uavid'
-gpu = "1"
-run_id = 'b1_dan_4e-3_100_3'
+classes = 6
+save_dir = './runs_udd6'
+gpu = "7"
+run_id = 'b1_up_4e-3_100_'
 model_type = "dan"
 
 # setup scheduler
@@ -77,6 +77,7 @@ def test(args, testloader, model, criterion, epoch, logger ):
             # start_time = time.time()
             image, label, name = batch
             image = image[:, 0:3, :, :].cuda()
+            # print(label)
             label = label.cuda()
             output = model(image)
             loss = criterion(output, label)
@@ -84,9 +85,14 @@ def test(args, testloader, model, criterion, epoch, logger ):
             # inter_time = time.time() - start_time
             output = output.cpu().detach()[0].numpy()
             gt = np.asarray(label[0].cpu().detach().numpy(), dtype=np.uint8)
+            
             # print('gt size {}, output shape {}'.format(gt.shape, output.shape))
+            
             output = output.transpose(1, 2, 0)
+
             output = np.asarray(np.argmax(output, axis=2), dtype=np.uint8)
+            # print(np.unique(output))
+
             running_Metrics.update(gt, output)
 
 
@@ -177,12 +183,12 @@ def main(args, logger):
 
 
     # setup DatasetLoader
-    train_set = uavidloader(root=args.root, split='train')
-    test_set = uavidloader(root=args.root, split='val')
+    train_set = udd6loader(root=args.root, split='train')
+    test_set = udd6loader(root=args.root, split='val')
 
     kwargs = {'num_workers': args.workers, 'pin_memory': True}
     train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True, **kwargs)
-    test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, **kwargs)
+    test_loader = DataLoader(test_set, batch_size=1, shuffle=False, **kwargs)
 
     # setup optimization criterion
     criterion = utils.utils.cross_entropy2d
@@ -190,12 +196,10 @@ def main(args, logger):
     # setup model
     print('======> building network')
     logger.info('======> building network')
-    model = EfficientNet_1_DAN.from_name('efficientnet-b1').cuda()
-    checkpoint = torch.load('./pretrained/b1_dan.pth').state_dict()
+
+    model = EfficientNet_1_up.from_name('efficientnet-b1',override_params={'num_classes': classes}).cuda()
+    checkpoint = torch.load('./pretrained/b1_up_6.pth').state_dict()
     
-
-
-
     # model = EfficientNet_1_up.from_name('efficientnet-b1').cuda()
     # # model = torch.hub.load('rwightman/gen-efficientnet-pytorch', 'efficientnet_b1', pretrained=True)
     # checkpoint = torch.load('./pretrained/b1_up.pth').state_dict()

@@ -255,6 +255,7 @@ class EfficientNet_1_up(nn.Module):
         self.up4x = nn.Upsample(scale_factor=4, mode='bilinear', align_corners=True)
         self.up8x = nn.Upsample(scale_factor=8, mode='bilinear', align_corners=True)
         self.conv_744_320 = double_conv(744, 320)
+        self.outconv_320_6 = outconv_8(320, 6)
         self.outconv_320_8 = outconv_8(320, 8)
         self._swish = MemoryEfficientSwish()
 
@@ -270,6 +271,7 @@ class EfficientNet_1_up(nn.Module):
 
         # Stem
         x = self._swish(self._bn0(self._conv_stem(inputs)))
+        
 
         # Blocks
         for idx, block in enumerate(self._blocks):
@@ -311,7 +313,10 @@ class EfficientNet_1_up(nn.Module):
     
         x_out=torch.cat([x, x_192, x_112, x_80, x_40],dim=1)
         x_out = self.conv_744_320(x_out)
-        x_out = self.outconv_320_8(x_out)
+        if self._global_params.num_classes == 8:
+            x_out = self.outconv_320_8(x_out)
+        elif self._global_params.num_classes == 6:
+            x_out = self.outconv_320_6(x_out)
         x_out = self.up8x(x_out)
         return x_out
 

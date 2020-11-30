@@ -246,6 +246,7 @@ class EfficientNet_1_DAN(nn.Module):
                 self._blocks.append(MBConvBlock(block_args, self._global_params))
 
         # Head
+        
         # in_channels = block_args.output_filters  # output of final block
         # out_channels = round_filters(320, self._global_params)
         # self._conv_head = Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
@@ -264,6 +265,7 @@ class EfficientNet_1_DAN(nn.Module):
         self.conv_744_320 = double_conv(744, 320)
         self.conv_960_320 = double_conv(960, 320)
         self.outconv_320_8 = outconv(320, 8)
+        self.outconv_320_6 = outconv(320, 6)
         self._swish = MemoryEfficientSwish()
         inter_channels = 320
         norm_layer=nn.BatchNorm2d
@@ -346,14 +348,21 @@ class EfficientNet_1_DAN(nn.Module):
 
         x_out = torch.cat([x_sa ,x_sc, x_sum],dim=1)
         x_out = self.conv_960_320(x_out)
-        x_out = self.outconv_320_8(x_out)
+        if self._global_params.num_classes == 8:
+            x_out = self.outconv_320_8(x_out)
+        elif self._global_params.num_classes == 6:
+            x_out = self.outconv_320_6(x_out)
+
+        
         x_out = self.up8x(x_out)
         return x_out
 
     @classmethod
     def from_name(cls, model_name, override_params=None):
         cls._check_model_name_is_valid(model_name)
+        override_params={'num_classes': num_classes}
         blocks_args, global_params = get_model_params(model_name, override_params)
+        # global_params.num_classes = num_classes
         return cls(blocks_args, global_params)
 
     @classmethod
