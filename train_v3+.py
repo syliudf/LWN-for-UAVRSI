@@ -16,7 +16,7 @@ import argparse
 import torch
 import numpy as np
 import torch.optim as optim
-from network.net import deeplab_resnet
+from network.net import deeplab_resnet50
 from loader.load_uavid import uavidloader
 from torch.utils.data import DataLoader
 from metrics.metrics_uavid import runningScore, averageMeter
@@ -30,13 +30,13 @@ warnings.filterwarnings('ignore')
 # hyperparams settings
 model_init = 'deeplab3+'
 root_init = './data/uavid_crop_25/'
-batch_size = 4
+batch_size = 6
 max_epochs = 100
 lr_init = 0.004
 classes = 8
 save_dir = './runs_uavid'
-gpu = "7"
-run_id = 'deeplabv3+_res101_4e-3_100'
+gpu = "1"
+run_id = 'deeplabv3+_res50_4e-3_100_2'
 
 # setup scheduler
 def adjust_learning_rate(cur_epoch, max_epoch, curEpoch_iter, perEpoch_iter, baselr):
@@ -181,7 +181,7 @@ def main(args, logger):
     # setup model
     print('======> building network')
     logger.info('======> building network')
-    model = deeplab_resnet.DeepLabv3_plus(
+    model = deeplab_resnet50.DeepLabv3_plus(
                         nInputChannels=3,
                         n_classes=8,
                         os=8,

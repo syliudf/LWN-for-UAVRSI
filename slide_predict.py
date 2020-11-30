@@ -9,7 +9,7 @@ import random
 import argparse
 import numpy as np
 from collections import OrderedDict
-os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader
 from loader.load_uavid import uavidloader
 from network.net import deeplab_resnet
 from network.efficientnet.Efficientnet_DAN import EfficientNet_1_Nof
-
+from network.efficientnet.Efficientnet_DAN import EfficientNet_1_DAN
 def get_Hrrs_label():
     return np.asarray(
                       [
@@ -81,32 +81,32 @@ def model_inference(model, image, flip=True):
         return output/3
     return output
 
-# def checksize(image, crop_size=512):
-#     N, C, H, W = image.shape
-#     ratio = H/W
+def checksize(image, crop_size=512):
+    N, C, H, W = image.shape
+    ratio = H/W
     
-#     if H > 700 and W > 700:
+    if H > 700 and W > 700:
     
-#         H_ = H
-#         W_ = W
+        H_ = H
+        W_ = W
 
-#     else:
+    else:
     
-#         if 2/3 < ratio < 3/2:
-#             H_ = crop_size
-#             W_ = crop_size
-#         else:
-#             if H > W:
-#                 H_ = math.ceil(ratio*crop_size)
-#                 W_ = crop_size
-#             else:
-#                 H_ = crop_size
-#                 W_ = math.ceil(crop_size/ratio)
+        if 2/3 < ratio < 3/2:
+            H_ = crop_size
+            W_ = crop_size
+        else:
+            if H > W:
+                H_ = math.ceil(ratio*crop_size)
+                W_ = crop_size
+            else:
+                H_ = crop_size
+                W_ = math.ceil(crop_size/ratio)
 
-#     print(f"H:{H}, W:{W}, H_:{H_}, W_:{W_}")
-#     image = F.interpolate(image, size=(H_, W_), mode='bilinear', align_corners=True)
+    print(f"H:{H}, W:{W}, H_:{H_}, W_:{W_}")
+    image = F.interpolate(image, size=(H_, W_), mode='bilinear', align_corners=True)
 
-#     return image
+    return image
 
 def slide(model, scale_image, num_classes=8, crop_size=512, overlap=1/3, scales=[1.0], flip=True):
 
@@ -307,33 +307,33 @@ def main(input_path_testA, output_path_testA, model_path):
     # testA_set = onlinezkxt(root=input_path_testA, transform=T)
     # testA_set = vaihingenloader(root=args.root, split='test')
     testA_set = uavidloader(root=input_path_testA, split='test')
-    testA_loader = DataLoader(testA_set, batch_size=1, shuffle=False, num_workers=2, pin_memory=True)
+    testA_loader = DataLoader(testA_set, batch_size=4, shuffle=False, num_workers=2, pin_memory=True)
 
     # testB_set = onlinezkxt(root=input_path_testB, transform=T)
     # testB_loader = DataLoader(testB_set, batch_size=1, shuffle=False, num_workers=1, pin_memory=True)
 
     # deeplab = encoding.models.get_model('gffnet_ResNeSt101_ADE', pretrained=False)
-    model = deeplab_resnet.DeepLabv3_plus(
-                        nInputChannels=3,
-                        n_classes=8,
-                        os=8,
-                        pretrained=True
-                        ).cuda()
+    # model = deeplab_resnet.DeepLabv3_plus(
+    #                     nInputChannels=3,
+    #                     n_classes=8,
+    #                     os=8,
+    #                     pretrained=True
+    #                     ).cuda()
 
     # model = torch.nn.DataParallel(model, device_ids=[0])
     # deeplab.gffhead.cls[6] = nn.Conv2d(256, 9, kernel_size=(1, 1), stride=(1, 1))
     # deeplab.auxlayer.conv5[4] = nn.Conv2d(256, 9, kernel_size=(1, 1), stride=(1, 1))
     # print(checkpoint)
-    # model = EfficientNet_1_Nof.from_name('efficientnet-b1').cuda()
+    model = EfficientNet_1_DAN.from_name('efficientnet-b1').cuda()
 
 
     checkpoint = torch.load(model_path ,map_location="cuda:0")
-    new_state_dict = OrderedDict()
-    for k, v in checkpoint.items():
-        name = k[7:] # remove 'module.'
-        new_state_dict[name] = v
-    model.load_state_dict(new_state_dict)
-    # model.load_state_dict(checkpoint) 
+    # new_state_dict = OrderedDict()
+    # for k, v in checkpoint.items():
+    #     name = k[7:] # remove 'module.'
+    #     new_state_dict[name] = v
+    # model.load_state_dict(new_state_dict)
+    model.load_state_dict(checkpoint) 
 
     
     
@@ -365,12 +365,14 @@ if __name__ == '__main__':
     import sys
 
 
-    input_path_testA = './data/uavid_crop'
+    input_path_testA = './data/uavid_crop_25'
  
 
-    output_path_testA = './data/results/dplbv3+'
+    output_path_testA = './data/results/b1upDAN3'
 
-    model_path = 'runs_uavid/deeplabv3+_res101_4e-3_100/deeplab3+bs4gpu7/model.pth'
+    model_path = 'b1_dan_4e-3_100_3/b1_dan_100_3bs8gpu1'
+
+    model_path = os.path.join('runs_uavid', model_path, 'model.pth')
 
 
     cudnn.benchmark = True

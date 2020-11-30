@@ -20,6 +20,7 @@ from network.efficientnet.model import EfficientNet
 
 from network.efficientnet.Efficientnet_uav import EfficientNet_1_up
 from network.efficientnet.Efficientnet_DAN import EfficientNet_1_Nof
+from network.efficientnet.Efficientnet_DAN import EfficientNet_1_DAN
 import torch.optim as optim
 
 from loader.load_uavid import uavidloader
@@ -32,16 +33,16 @@ import utils.utils
 
 import warnings
 warnings.filterwarnings('ignore')
-model_init = 'b1_nof_100_2'
+model_init = 'b1_dan_100_3'
 root_init = './data/uavid_crop_25/'
 batch_size = 8
 max_epochs = 100
 lr_init = 0.004
 classes = 8
 save_dir = './runs_uavid'
-gpu = "2"
-run_id = 'b1_nof_4e-3_100_2'
-model_type = "nof"
+gpu = "1"
+run_id = 'b1_dan_4e-3_100_3'
+model_type = "dan"
 
 # setup scheduler
 def adjust_learning_rate(cur_epoch, max_epoch, curEpoch_iter, perEpoch_iter, baselr):
@@ -187,8 +188,8 @@ def main(args, logger):
     # setup model
     print('======> building network')
     logger.info('======> building network')
-    model = EfficientNet_1_Nof.from_name('efficientnet-b1').cuda()
-    checkpoint = torch.load('./pretrained/b1_dan_nof.pth').state_dict()
+    model = EfficientNet_1_DAN.from_name('efficientnet-b1').cuda()
+    checkpoint = torch.load('./pretrained/b1_dan.pth').state_dict()
     
 
 
