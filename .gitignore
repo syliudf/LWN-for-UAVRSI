@@ -4,8 +4,8 @@ network/.ip*
 pretrained
 runs*
 save1.png
-effnet/*
-efficientnet_pytorch/*
+effnet1/*
+efficientnet_pytorch1/*
 old_file/*
 
 # Byte-compiled / optimized / DLL files
