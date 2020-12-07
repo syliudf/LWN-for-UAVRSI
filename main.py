@@ -202,6 +202,8 @@ def main(args, logger):
                 logger.info('best overall: {}'.format(best_overall))
                 logger.info('best F1: {}'.format(best_F1))
                 logger.info('best epoch: {}'.format(best_epoch))
+                epoch_end = timeit.default_timer()
+                print("training time:", 1.0*(epoch_end-start)/3600)
                 
 
 #            #save the model
@@ -219,8 +221,7 @@ def main(args, logger):
             # print('the best pred mIoU: {}'.format(best_pred))
             flag = False
             break
-    epoch_end = timeit.default_timer()
-    print("training time:", 1.0*(epoch_end-start)/3600)
+
 
 
 if __name__ == '__main__':
