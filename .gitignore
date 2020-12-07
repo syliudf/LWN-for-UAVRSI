@@ -4,6 +4,6 @@ network/.ip*
 pretrained
 runs*
 save1.png
-effnet
-
-effnet/EfficientNet-PyTorch
+effnet/*
+efficientnet_pytorch/*
+old_file/*

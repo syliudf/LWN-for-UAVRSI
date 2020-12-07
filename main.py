@@ -15,14 +15,13 @@ import random
 import argparse
 import torch
 import numpy as np
-
-from network.efficientnet.Efficientnet_mod import EfficientNet_1_upsample
-
+import timeit
+import configparser
 import torch.optim as optim
-
-from loader.load_vaihingen import vaihingenloader
+from tools.trainer import Trainer
+from tools.tester import Tester
 from torch.utils.data import DataLoader
-from metrics.metrics import runningScore, averageMeter
+from metrics.metrics_uavid import runningScore, averageMeter
 import torch.backends.cudnn as cudnn
 from utils.modeltools import netParams
 from utils.set_logger import get_logger
@@ -31,109 +30,22 @@ import utils.utils
 import warnings
 warnings.filterwarnings('ignore')
 
+cfg = configparser.RawConfigParser()
+cfg.read("config.ini")
 
-# setup scheduler
-def adjust_learning_rate(cur_epoch, max_epoch, curEpoch_iter, perEpoch_iter, baselr):
-    """
-    poly learning stategyt
-    lr = baselr*(1-iter/max_iter)^power
-    """
-    cur_iter = cur_epoch*perEpoch_iter + curEpoch_iter
-    max_iter = max_epoch*perEpoch_iter
-    lr = baselr*pow((1 - 1.0*cur_iter/max_iter), 0.9)
+dataset_type = cfg.get("init", "DATASET")
 
-    return lr
+MODEL_INIT = cfg.get(dataset_type, "MODEL_INIT")
+ROOT = cfg.get(dataset_type, "ROOT")
+BATCH_SIZE = cfg.getint(dataset_type, "BATCH_SIZE")
+MAX_EPOCHES = cfg.getint(dataset_type, "MAX_EPOCHES")
+LR_INIT = cfg.getfloat(dataset_type, "LR_INIT")
+NUM_CLASSES = cfg.getint(dataset_type, "NUM_CLASSES")
+SAVE_DIR = cfg.get(dataset_type, "SAVE_DIR")
+GPU = cfg.get(dataset_type, "GPU")
+REPEAT_TIME = cfg.getint(dataset_type, "REPEAT")
 
-
-def test(args, testloader, model, criterion, epoch, logger ):
-    '''
-    args:
-        test_loader: loaded for test dataset
-        model: model
-    return:
-        mean IoU, IoU class
-    '''
-    model.eval()
-    tloss = 0.
-    # Setup Metrics
-    running_Metrics = runningScore(args.num_classes)
-    total_batches = len(testloader)
-    print("=====> the number of iterations per epoch: ", total_batches)
-    with torch.no_grad():
-        for iter, batch in enumerate(testloader):
-            # start_time = time.time()
-            image, label, name = batch
-            image = image[:, 0:3, :, :].cuda()
-            label = label.cuda()
-            output = model(image)
-            loss = criterion(output, label)
-            tloss += loss.item()
-            # inter_time = time.time() - start_time
-            output = output.cpu().detach()[0].numpy()
-            gt = np.asarray(label[0].cpu().detach().numpy(), dtype=np.uint8)
-            # print('gt size {}, output shape {}'.format(gt.shape, output.shape))
-            output = output.transpose(1, 2, 0)
-            output = np.asarray(np.argmax(output, axis=2), dtype=np.uint8)
-            running_Metrics.update(gt, output)
-
-
-    print(f"test phase: Epoch [{epoch:d}/{args.max_epochs:d}] loss: {tloss/total_batches:.5f}")
-    score, class_iou, class_F1 = running_Metrics.get_scores()
-
-
-    running_Metrics.reset()
-
-    return score, class_iou, class_F1
-
-
-def train(args, trainloader, model, criterion, optimizer, epoch, logger):
-    '''
-    args:
-        trainloader: loaded for traain dataset
-        model: model
-        criterion: loss function
-        optimizer: optimizer algorithm, such as Adam or SGD
-        epoch: epoch_number
-    return:
-        average loss
-    '''
-    model.train()
-    total_batches = len(trainloader)
-    for iter, batch in enumerate(trainloader, 0):
-        lr = adjust_learning_rate(
-                                cur_epoch=epoch,
-                                max_epoch=args.max_epochs,
-                                curEpoch_iter=iter,
-                                perEpoch_iter=total_batches,
-                                baselr=args.lr
-                                )
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = lr
-        start_time = time.time()
-        images, labels, name = batch
-        images = images[:, 0:3, :, :].cuda()
-        labels = labels.type(torch.long).cuda()
-        output = model(images)
-
-        loss = criterion(output, labels)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        interval_time = time.time() - start_time
-
-
-        if iter+1 == total_batches:
-            fmt_str = '======> epoch [{:d}/{:d}] cur_lr: {:.6f} loss: {:.5f} time: {:.2f}'
-            print_str = fmt_str.format(
-                                    epoch,
-                                    args.max_epochs,
-                                    lr,
-                                    loss.item(),
-                                    interval_time
-                                    )
-            print(print_str)
-            logger.info(print_str)
-
+RUN_ID = MODEL_INIT+'_'+str(MAX_EPOCHES)+'_'+str(REPEAT_TIME)
 
 def main(args, logger):
 
@@ -150,6 +62,7 @@ def main(args, logger):
     
     random.seed(seed)  # python random seed
     np.random.seed(seed)  # set numpy random seed
+    start = timeit.default_timer()
 
     torch.manual_seed(seed)  # set random seed for cpu
     if torch.cuda.is_available():
@@ -161,12 +74,18 @@ def main(args, logger):
 
 
     # setup DatasetLoader
-    train_set = vaihingenloader(root=args.root, split='train')
-    test_set = vaihingenloader(root=args.root, split='test')
+    if dataset_type == 'uavid':
+        from loader.load_uavid import uavidloader
+        train_set = uavidloader(root=args.root, split='train')
+        test_set = uavidloader(root=args.root, split='val')
+    if dataset_type == 'udd6':
+        from loader.load_udd6 import udd6loader
+        train_set = udd6loader(root=args.root, split='train')
+        test_set = udd6loader(root=args.root, split='val')
 
     kwargs = {'num_workers': args.workers, 'pin_memory': True}
     train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True, **kwargs)
-    test_loader = DataLoader(test_set, batch_size=1, shuffle=False, **kwargs)
+    test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, **kwargs)
 
     # setup optimization criterion
     criterion = utils.utils.cross_entropy2d
@@ -174,31 +93,32 @@ def main(args, logger):
     # setup model
     print('======> building network')
     logger.info('======> building network')
-#     model =UNet(n_channels =3, n_classes=6 ).cuda()
-    model = EfficientNet_1_upsample.from_name('efficientnet-b1').cuda()
-        #
 
-    model_dict = model.state_dict()
-    checkpoint = torch.load('./pretrained/b1_pretrained.pth').state_dict()
-    
-#     checkpoint = checkpoint.state_dict()
-    
-#     new_dict = {k: v for k,v in model_dict.items() if k in checkpoint}
-    
-#     model_dict.update(new_dict)
-#     model.load_state_dict(model_dict)
-    
-    
-    
-    model.load_state_dict(checkpoint)
+    if MODEL_INIT == "b1_dan":
+        from network.efficientnet.Efficientnet_DAN import EfficientNet_1_DAN
+        model = EfficientNet_1_DAN.from_name('efficientnet-b1',override_params={'num_classes' : NUM_CLASSES}).cuda()
+        checkpoint = torch.load('./pretrained/b1_dan_8.pth').state_dict()
+        model.load_state_dict(checkpoint)
+    if MODEL_INIT == 'deeplabv3+_resnet50':
+        from network.net import deeplab_resnet50
+        model = deeplab_resnet50.DeepLabv3_plus(
+                    nInputChannels=3,
+                    n_classes=NUM_CLASSES,
+                    os=8,
+                    pretrained=True
+                    ).cuda()
+    if MODEL_INIT == 'deeplabv3+_resnet101':
+        from network.net import deeplab_resnet
+        model = deeplab_resnet.DeepLabv3_plus(
+                    nInputChannels=3,
+                    n_classes=NUM_CLASSES,
+                    os=8,
+                    pretrained=True
+                    ).cuda()
     if torch.cuda.device_count() > 1:
 
         device_ids = list(map(int, args.gpu.split(',')))
-#     model = FCNRes101().cuda(device_ids[0])
-    # model = UNet(n_channels=3, n_classes=6,).cuda(device_ids[0])
         model = torch.nn.DataParallel(model, device_ids=device_ids)
-    
-#     print(model)
 
     print("======> computing network parameters")
     logger.info("======> computing network parameters")
@@ -224,13 +144,16 @@ def main(args, logger):
     best_overall = 0.
     best_mIoU = 0.
     best_F1 = 0. 
-
+    epoch = 0
+    train_1_epoch = Trainer(args, train_loader, model, criterion, optimizer, epoch, logger)
+    testing = Tester(args, train_loader, model, criterion, optimizer, epoch, logger)
     while flag == True:
         for epoch in range(start_epoch, args.max_epochs):
             print('======> Epoch {} starting train.'.format(epoch))
             logger.info('======> Epoch {} starting train.'.format(epoch))
-
-            train(args, train_loader, model, criterion, optimizer, epoch, logger)
+            # print(logger)
+            
+            train_1_epoch.train_net(epoch)
 
             print('======> Epoch {} train finish.'.format(epoch))
             logger.info('======> Epoch {} train finish.'.format(epoch))
@@ -240,8 +163,8 @@ def main(args, logger):
                 logger.info('Now starting evaluate on Test dataset.')
                 print('length of test set:', len(test_loader))
                 logger.info('length of test set: {}'.format(len(test_loader)))
-
-                score, class_iou, class_F1 = test(args, test_loader, model, criterion, epoch, logger)
+                
+                score, class_iou, class_F1 = testing.test_net()
         
                 for k, v in score.items():
                     print('{}: {:.5f}'.format(k, v))
@@ -259,13 +182,14 @@ def main(args, logger):
                 
                 if score["Mean IoU : \t"] > best_mIoU:
                     best_mIoU = score["Mean IoU : \t"]
+                    model_file_name = args.savedir + '/model.pth'
+                    torch.save(model.module.state_dict(), model_file_name)
+                    best_epoch = epoch
                 
                 if score["Overall Acc : \t"] > best_overall:
                     best_overall = score["Overall Acc : \t"]
                     # save model in best overall Acc
-                    model_file_name = args.savedir + '/model.pth'
-                    torch.save(model.state_dict(), model_file_name)
-                    best_epoch = epoch
+                    
 
                 if score["Mean F1 : \t"] > best_F1:
                     best_F1 = score["Mean F1 : \t"]
@@ -274,6 +198,11 @@ def main(args, logger):
                 print(f"best overall : {best_overall}")
                 print(f"best F1: {best_F1}")
                 print(f"best epoch: {best_epoch}")
+                logger.info('best mean IoU: {}'.format(best_mIoU))
+                logger.info('best overall: {}'.format(best_overall))
+                logger.info('best F1: {}'.format(best_F1))
+                logger.info('best epoch: {}'.format(best_epoch))
+                
 
 #            #save the model
 #            model_file_name = args.savedir +'/model.pth'
@@ -290,6 +219,8 @@ def main(args, logger):
             # print('the best pred mIoU: {}'.format(best_pred))
             flag = False
             break
+    epoch_end = timeit.default_timer()
+    print("training time:", 1.0*(epoch_end-start)/3600)
 
 
 if __name__ == '__main__':
@@ -299,26 +230,26 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Semantic Segmentation...')
 
-    parser.add_argument('--model', default='effnet', type=str)
-    parser.add_argument('--root', default='./data/vaismall/', help='data directory')
+    parser.add_argument('--model', default=MODEL_INIT, type=str)
+    parser.add_argument('--root', default=ROOT, help='data directory')
 
-    parser.add_argument('--batch_size', default=8, type=int)
-    parser.add_argument('--max_epochs', type=int, default=500, help='the number of epochs: default 100 ')
-    parser.add_argument('--num_classes', default=6, type=int)
-    parser.add_argument('--lr', default=0.002, type=float)
+    parser.add_argument('--batch_size', default=BATCH_SIZE, type=int)
+    parser.add_argument('--max_epochs', type=int, default=MAX_EPOCHES, help='the number of epochs: default 100 ')
+    parser.add_argument('--num_classes', default=NUM_CLASSES, type=int)
+    parser.add_argument('--lr', default=LR_INIT, type=float)
     parser.add_argument('--weight_decay', default=4e-5, type=float)
     parser.add_argument('--workers', type=int, default=2, help=" the number of parallel threads")
     parser.add_argument('--show_interval', default=10, type=int)
     parser.add_argument('--show_val_interval', default=1000, type=int)
-    parser.add_argument('--savedir', default="./runs_nonlocal/", help="directory to save the model snapshot")
+    parser.add_argument('--savedir', default=SAVE_DIR, help="directory to save the model snapshot")
     # parser.add_argument('--logFile', default= "log.txt", help = "storing the training and validation logs")
-    parser.add_argument('--gpu', type=str, default="7", help="default GPU devices (7)")
+    parser.add_argument('--gpu', type=str, default=GPU, help="default GPU devices (3)")
 
     args = parser.parse_args()
 
-    run_id = 'b1_9_batchsize=8'
-    print('Now run_id {}'.format(run_id))
-    args.savedir = os.path.join(args.savedir, str(run_id))
+    
+    print('Now run_id {}'.format(RUN_ID))
+    args.savedir = os.path.join(args.savedir, str(RUN_ID))
     print(args.savedir)
 
     if not os.path.exists(args.savedir):
@@ -341,7 +272,7 @@ if __name__ == '__main__':
     main(args, logger)
     end = timeit.default_timer()
     print("training time:", 1.0*(end-start)/3600)
-    print('model save in {}.'.format(run_id))
+    print('model save in {}.'.format(RUN_ID))
 
 
 
