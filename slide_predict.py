@@ -20,7 +20,8 @@ from torch.utils.data import DataLoader
 from loader.load_uavid import uavidloader
 # from network.unet import UNet
 from network.efficientnet.Efficientnet_DAN import EfficientNet_1_Nof
-
+import sys
+sys.path.append('./')
 
 def get_Hrrs_label():
     return np.asarray(

@@ -71,14 +71,16 @@ def main(args, logger):
 
     # Setup device
     # device = torch.device("cuda:{}".format(args.gpu) if torch.cuda.is_available() else "cpu")
-
-
     # setup DatasetLoader
     if dataset_type == 'uavid':
         from loader.load_uavid import uavidloader
         train_set = uavidloader(root=args.root, split='train')
         test_set = uavidloader(root=args.root, split='val')
-    if dataset_type == 'udd6':
+    elif dataset_type == 'udd6':
+        from loader.load_udd6 import udd6loader
+        train_set = udd6loader(root=args.root, split='train')
+        test_set = udd6loader(root=args.root, split='val')
+    else:
         from loader.load_udd6 import udd6loader
         train_set = udd6loader(root=args.root, split='train')
         test_set = udd6loader(root=args.root, split='val')
@@ -97,9 +99,43 @@ def main(args, logger):
     if MODEL_INIT == "b1_dan":
         from network.efficientnet.Efficientnet_DAN import EfficientNet_1_DAN
         model = EfficientNet_1_DAN.from_name('efficientnet-b1',override_params={'num_classes' : NUM_CLASSES}).cuda()
-        checkpoint = torch.load('./pretrained/b1_dan_8.pth').state_dict()
+        if NUM_CLASSES==8:
+            checkpoint = torch.load('./pretrained/b1_dan_8.pth').state_dict()
+        elif NUM_CLASSES==6 :
+            checkpoint = torch.load('./pretrained/b1_dan_6.pth').state_dict()
+    elif MODEL_INIT == "b1_up":
+        from network.efficientnet.Efficientnet_uav import EfficientNet_1_up
+        model = EfficientNet_1_up.from_name('efficientnet-b1',override_params={'num_classes' : NUM_CLASSES}).cuda()
+        if NUM_CLASSES==8:
+            checkpoint = torch.load('./pretrained/b1_up_8.pth').state_dict()
+        elif NUM_CLASSES==6 :
+            checkpoint = torch.load('./pretrained/b1_up_6.pth').state_dict()
         model.load_state_dict(checkpoint)
-    if MODEL_INIT == 'deeplabv3+_resnet50':
+    elif MODEL_INIT == "b1_nof":
+        from network.efficientnet.Efficientnet_DAN import EfficientNet_1_Nof
+        model = EfficientNet_1_Nof.from_name('efficientnet-b1',override_params={'num_classes' : NUM_CLASSES}).cuda()
+        if NUM_CLASSES==8:
+            checkpoint = torch.load('./pretrained/b1_nofusion.pth').state_dict()
+        elif NUM_CLASSES==6 :
+            checkpoint = torch.load('./pretrained/b1_nofusion_6.pth').state_dict()
+        model.load_state_dict(checkpoint)
+    elif MODEL_INIT == "b1_pam":
+        from network.efficientnet.Efficientnet_DAN import EfficientNet_1_PAM
+        model = EfficientNet_1_PAM.from_name('efficientnet-b1',override_params={'num_classes' : NUM_CLASSES}).cuda()
+        if NUM_CLASSES==8:
+            checkpoint = torch.load('./pretrained/b1_pam_8.pth').state_dict()
+        elif NUM_CLASSES==6 :
+            checkpoint = torch.load('./pretrained/b1_pam_6.pth').state_dict()
+        model.load_state_dict(checkpoint)
+    elif MODEL_INIT == "b1_cam":
+        from network.efficientnet.Efficientnet_DAN import EfficientNet_1_CAM
+        model = EfficientNet_1_CAM.from_name('efficientnet-b1',override_params={'num_classes' : NUM_CLASSES}).cuda()
+        if NUM_CLASSES==8:
+            checkpoint = torch.load('./pretrained/b1_cam_8.pth').state_dict()
+        elif NUM_CLASSES==6 :
+            checkpoint = torch.load('./pretrained/b1_cam_6.pth').state_dict()
+        model.load_state_dict(checkpoint)
+    elif MODEL_INIT == 'deeplabv3+_resnet50':
         from network.net import deeplab_resnet50
         model = deeplab_resnet50.DeepLabv3_plus(
                     nInputChannels=3,
@@ -107,7 +143,7 @@ def main(args, logger):
                     os=8,
                     pretrained=True
                     ).cuda()
-    if MODEL_INIT == 'deeplabv3+_resnet101':
+    elif MODEL_INIT == 'deeplabv3+_resnet101':
         from network.net import deeplab_resnet
         model = deeplab_resnet.DeepLabv3_plus(
                     nInputChannels=3,
