@@ -26,6 +26,7 @@ import torch.backends.cudnn as cudnn
 from utils.modeltools import netParams
 from utils.set_logger import get_logger
 import utils.utils
+from network import build_network
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -96,61 +97,7 @@ def main(args, logger):
     print('======> building network')
     logger.info('======> building network')
 
-    if MODEL_INIT == "b1_dan":
-        from network.efficientnet.Efficientnet_DAN import EfficientNet_1_DAN
-        model = EfficientNet_1_DAN.from_name('efficientnet-b1',override_params={'num_classes' : NUM_CLASSES}).cuda()
-        if NUM_CLASSES==8:
-            checkpoint = torch.load('./pretrained/b1_dan_8.pth').state_dict()
-        elif NUM_CLASSES==6 :
-            checkpoint = torch.load('./pretrained/b1_dan_6.pth').state_dict()
-    elif MODEL_INIT == "b1_up":
-        from network.efficientnet.Efficientnet_uav import EfficientNet_1_up
-        model = EfficientNet_1_up.from_name('efficientnet-b1',override_params={'num_classes' : NUM_CLASSES}).cuda()
-        if NUM_CLASSES==8:
-            checkpoint = torch.load('./pretrained/b1_up_8.pth').state_dict()
-        elif NUM_CLASSES==6 :
-            checkpoint = torch.load('./pretrained/b1_up_6.pth').state_dict()
-        model.load_state_dict(checkpoint)
-    elif MODEL_INIT == "b1_nof":
-        from network.efficientnet.Efficientnet_DAN import EfficientNet_1_Nof
-        model = EfficientNet_1_Nof.from_name('efficientnet-b1',override_params={'num_classes' : NUM_CLASSES}).cuda()
-        if NUM_CLASSES==8:
-            checkpoint = torch.load('./pretrained/b1_nofusion.pth').state_dict()
-        elif NUM_CLASSES==6 :
-            checkpoint = torch.load('./pretrained/b1_nofusion_6.pth').state_dict()
-        model.load_state_dict(checkpoint)
-    elif MODEL_INIT == "b1_pam":
-        from network.efficientnet.Efficientnet_DAN import EfficientNet_1_PAM
-        model = EfficientNet_1_PAM.from_name('efficientnet-b1',override_params={'num_classes' : NUM_CLASSES}).cuda()
-        if NUM_CLASSES==8:
-            checkpoint = torch.load('./pretrained/b1_pam_8.pth').state_dict()
-        elif NUM_CLASSES==6 :
-            checkpoint = torch.load('./pretrained/b1_pam_6.pth').state_dict()
-        model.load_state_dict(checkpoint)
-    elif MODEL_INIT == "b1_cam":
-        from network.efficientnet.Efficientnet_DAN import EfficientNet_1_CAM
-        model = EfficientNet_1_CAM.from_name('efficientnet-b1',override_params={'num_classes' : NUM_CLASSES}).cuda()
-        if NUM_CLASSES==8:
-            checkpoint = torch.load('./pretrained/b1_cam_8.pth').state_dict()
-        elif NUM_CLASSES==6 :
-            checkpoint = torch.load('./pretrained/b1_cam_6.pth').state_dict()
-        model.load_state_dict(checkpoint)
-    elif MODEL_INIT == 'deeplabv3+_resnet50':
-        from network.net import deeplab_resnet50
-        model = deeplab_resnet50.DeepLabv3_plus(
-                    nInputChannels=3,
-                    n_classes=NUM_CLASSES,
-                    os=8,
-                    pretrained=True
-                    ).cuda()
-    elif MODEL_INIT == 'deeplabv3+_resnet101':
-        from network.net import deeplab_resnet
-        model = deeplab_resnet.DeepLabv3_plus(
-                    nInputChannels=3,
-                    n_classes=NUM_CLASSES,
-                    os=8,
-                    pretrained=True
-                    ).cuda()
+    model = build_network(MODEL_INIT, NUM_CLASSES)
     if torch.cuda.device_count() > 1:
 
         device_ids = list(map(int, args.gpu.split(',')))
@@ -188,8 +135,10 @@ def main(args, logger):
             print('======> Epoch {} starting train.'.format(epoch))
             logger.info('======> Epoch {} starting train.'.format(epoch))
             # print(logger)
-            
+            epoch_start = timeit.default_timer()
             train_1_epoch.train_net(epoch)
+            train_end = timeit.default_timer()
+            print("training time:", 1.0*(train_end-epoch_start)/3600)
 
             print('======> Epoch {} train finish.'.format(epoch))
             logger.info('======> Epoch {} train finish.'.format(epoch))
@@ -239,7 +188,7 @@ def main(args, logger):
                 logger.info('best F1: {}'.format(best_F1))
                 logger.info('best epoch: {}'.format(best_epoch))
                 epoch_end = timeit.default_timer()
-                print("training time:", 1.0*(epoch_end-start)/3600)
+                print("evaluation time:", -1.0*(train_end - epoch_end)/3600)
                 
 
 #            #save the model
