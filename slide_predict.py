@@ -9,7 +9,7 @@ import random
 import argparse
 import numpy as np
 from collections import OrderedDict
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -293,7 +293,7 @@ def main(input_path_testA, output_path_testA, model_path):
     # vgg_model = VGGNet(requires_grad=True, remove_fc=False).cuda()
     # model = FCN8s(pretrained_net=vgg_model, n_class=8).cuda()
     # from network.segnet import SegNet
-    from network.efficientnet.Efficientnet_DAN import EfficientNet_1_PAM as model_now
+    
     model = model_now.from_name('efficientnet-b1',override_params={'num_classes' : 8}).cuda()
 
     # model = deeplab_resnet50.DeepLabv3_plus(
@@ -341,20 +341,17 @@ if __name__ == '__main__':
     import torch
     from torch.utils.data import DataLoader
     from torchvision import transforms
-    import matplotlib.pyplot as plt
-    import pylab
     from os.path import basename
     from PIL import Image
     import sys
-
+    from network.efficientnet.Efficientnet_DAN import EfficientNet_1_PAM as model_now
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
     input_path_testA = './data/uavid_crop_25'
- 
 
-    output_path_testA = './data/results/pam'
+    output_path_testA = './data/results/pam_2'
 
-    model_path = 'runs_uavid/b1_pam_4e-3_100/b1_pam_100bs8gpu7/model.pth'
-
+    model_path = 'runs_uavid/b1_pam_100_2/b1_pambs8gpu2/model.pth'
 
     cudnn.benchmark = True
     cudnn.enabled = True

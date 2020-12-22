@@ -174,7 +174,8 @@ def main(args, logger):
                 if score["Overall Acc : \t"] > best_overall:
                     best_overall = score["Overall Acc : \t"]
                     # save model in best overall Acc
-                    
+                
+                # TODO functionalize it 
 
                 if score["Mean F1 : \t"] > best_F1:
                     best_F1 = score["Mean F1 : \t"]
