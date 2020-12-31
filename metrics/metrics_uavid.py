@@ -43,11 +43,6 @@ class runningScore(object):
         freq = hist.sum(axis=1) / hist.sum()
         fwavacc = (freq[freq > 0] * iu[freq > 0]).sum()
         cls_iu = dict(zip(range(self.n_classes), iu))
-        
-
-
- 
-
 
         return (
             {
@@ -63,7 +58,7 @@ class runningScore(object):
         )
 
     def caluate_F1(self, confusion_matrix):
-        import pandas as pd
+        # import pandas as pd
         F1_score = []
         for i in range(self.n_classes):
             p = confusion_matrix[i,i]/sum(confusion_matrix[:,i])

@@ -253,7 +253,9 @@ if __name__ == '__main__':
 
     if torch.cuda.device_count() > 1:
         torch.cuda.set_device(int(args.gpu.split(',')[0]))
+        # os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu.split(',')[0]
     else:
+        # os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
         torch.cuda.set_device(int(args.gpu))
     
     main(args, logger)

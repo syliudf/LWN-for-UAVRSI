@@ -59,6 +59,18 @@ def build_network(model_type, num_classes=8, pretrained=True):
                     os=8,
                     pretrained=True
                     ).cuda()
-    
+    elif model_type == 'fcn':
+        from network.fcn import VGGNet, FCN32s, FCN16s, FCN8s, FCNs
+        vgg_model = VGGNet(requires_grad=True, remove_fc=False).cuda()
+        model = FCN8s(pretrained_net=vgg_model, n_class=num_classes).cuda()
+
+    elif model_type == "segnet":
+        from network.segnet import SegNet
+        model = SegNet(3,num_classes).cuda()
+
+    elif model_type == "unet":
+        from .net.Unet import UNet
+        model =UNet(n_channels=3, n_classes=num_classes ).cuda()
+
     return model
 

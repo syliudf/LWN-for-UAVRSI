@@ -344,14 +344,14 @@ if __name__ == '__main__':
     from os.path import basename
     from PIL import Image
     import sys
-    from network.efficientnet.Efficientnet_DAN import EfficientNet_1_PAM as model_now
+    from network.efficientnet.Efficientnet_DAN import EfficientNet_1_Nof as model_now
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
     input_path_testA = './data/uavid_crop_25'
 
-    output_path_testA = './data/results/pam_2'
+    output_path_testA = './data/results/nof_9'
 
-    model_path = 'runs_uavid/b1_pam_100_2/b1_pambs8gpu2/model.pth'
+    model_path = 'runs_uavid/b1_nof_100_9/b1_nofbs16gpu2/model.pth'
 
     cudnn.benchmark = True
     cudnn.enabled = True
