@@ -18,7 +18,7 @@ import numpy as np
 import timeit
 import configparser
 import torch.optim as optim
-from tools.trainer import Trainer
+from tools.trainer_bhw import Trainer
 from tools.tester import Tester
 from torch.utils.data import DataLoader
 from metrics.metrics_uavid import runningScore, averageMeter
@@ -27,6 +27,8 @@ from utils.modeltools import netParams
 from utils.set_logger import get_logger
 import utils.utils
 from network import build_network
+import utils.WFL_FL
+# from network import errorloss
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -96,7 +98,7 @@ def main(args, logger):
     test_loader = DataLoader(test_set, batch_size=1, shuffle=False, **kwargs)
 
     # setup optimization criterion
-    criterion = utils.utils.cross_entropy2d
+    criterion = utils.WFL_FL.errorloss
 
     # setup model
     print('======> building network')

@@ -219,7 +219,7 @@ if __name__ == '__main__':
         Returns:
             (np.ndarray, optional): the resulting decoded color image.
         """
-        n_classes = 7
+        n_classes = 6
         label_colours = get_Vaihingen_label()
 
         r = label_mask.copy()
@@ -236,7 +236,7 @@ if __name__ == '__main__':
         return rgb
 
 
-    root = '/media/ssd/RS/data/vaihingen'
+    root = '/media/hdd1/IGARSS_2020_LiuSiyu/igarss/data/vaismall'
 
     isprs = vaihingenloader(root=root, split='train')
     print(len(isprs))

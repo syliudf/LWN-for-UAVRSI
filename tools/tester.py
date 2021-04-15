@@ -32,7 +32,7 @@ class Tester(object):
     def test_net(self):
         '''
         args:
-            trainloader: loaded for traain dataset
+            trainloader: loaded for train dataset
             model: model
             criterion: loss function
             optimizer: optimizer algorithm, such as Adam or SGD
@@ -49,6 +49,7 @@ class Tester(object):
         print("=====> the number of iterations per epoch: ", total_batches)
         with torch.no_grad():
             for iter, batch in enumerate(testloader):
+                # print(iter)
                 # start_time = time.time()
                 image, label, name = batch
                 image = image[:, 0:3, :, :].cuda()

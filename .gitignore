@@ -1,5 +1,6 @@
 .Trash*
 data
+data_paper
 network/.ip*
 pretrained
 runs*

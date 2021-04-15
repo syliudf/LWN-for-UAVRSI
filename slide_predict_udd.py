@@ -17,26 +17,25 @@ import torch.nn.functional as F
 from torchvision import transforms
 import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader
-from loader.load_uavid import uavidloader
+from loader.load_udd6 import udd6loader
 # from network.unet import UNet
-from network.efficientnet.Efficientnet_DAN import EfficientNet_1_Nof
+# from network.efficientnet.Efficientnet_DAN import EfficientNet_1_Nof
 import sys
 sys.path.append('./')
 
 def get_Hrrs_label():
     return np.asarray(
                       [
-              [  0,   0,   0],  # background clutter
-              [128,   0,   0],  # building
-		      [128,  64, 128],  # road
-		      [  0, 128,   0],  # tree
-		      [128, 128,   0],  # low vegetation
-		      [ 64,   0, 128],  # moving car
-		      [192,   0, 192],  # static car
-		      [ 64,  64,   0]   # human
+                                [107, 142,  35],  # vegetation
+                                [102, 102, 156],  # building
+                                [128,  64, 128],  # road
+                                
+                                [  0,   0, 142],  # vehicle
+                                [ 70,  70,  70],  # roof
+                                [  0,   0,   0]   # other 
                     ])
 
-def decode_segmap(label_mask, n_classes = 8):
+def decode_segmap(label_mask, n_classes = 6):
     """Decode segmentation class labels into a color image
     Args:
         label_mask (np.ndarray): an (M,N) array of integer values denoting
@@ -61,7 +60,7 @@ def decode_segmap(label_mask, n_classes = 8):
     rgb[:, :, 2] = b
     return rgb
 
-def tta_inference(inp, model, num_classes=8, scales=[1.0], flip=True):
+def tta_inference(inp, model, num_classes=6, scales=[1.0], flip=True):
     b, _, h, w = inp.size()
     preds = inp.new().resize_(b, num_classes, h, w).zero_().to(inp.device)
     for scale in scales:
@@ -83,7 +82,7 @@ def model_inference(model, image, flip=True):
         return output/3
     return output
 
-def slide(model, scale_image, num_classes=8, crop_size=512, overlap=1/3, scales=[1.0], flip=True):
+def slide(model, scale_image, num_classes=6, crop_size=512, overlap=1/3, scales=[1.0], flip=True):
 
     N, C, H_, W_ = scale_image.shape
     # print(f"Height: {H_} Width: {W_}")
@@ -158,7 +157,7 @@ def slide(model, scale_image, num_classes=8, crop_size=512, overlap=1/3, scales=
 
     return full_probs
     
-def predict_sliding(model, image, num_classes=8, crop_size=512, overlap=1/3, scales=[1.0], flip=True):
+def predict_sliding(model, image, num_classes=6, crop_size=512, overlap=1/3, scales=[1.0], flip=True):
 
     N, C, H, W = image.shape
     # scale_image = checksize(image, crop_size=crop_size)
@@ -231,7 +230,7 @@ def test(testloader, model, savedir, device):
             output = predict_sliding(
                 model=model,
                 image=image,
-                num_classes=8,
+                num_classes=6,
                 crop_size=512,
                 overlap=1/4,
                 scales=[0.75, 1.0, 1.25],
@@ -260,11 +259,11 @@ def test(testloader, model, savedir, device):
             # infile.close()
             # outfile.close()
 
-            img_save_path = os.path.join(savedir, img_save_name[:5], 'Labels', img_save_name[6:]+'.png')
-            if not os.path.exists(os.path.join(savedir, img_save_name[:5], 'Labels')):
-                os.makedirs(os.path.join(savedir, img_save_name[:5], 'Labels'))
+            img_save_path = os.path.join(savedir, img_save_name+'.png')
+            if not os.path.exists(os.path.join(savedir)):
+                os.makedirs(os.path.join(savedir))
             imageout = Image.fromarray(imageout)
-            print(img_save_path)
+            # print(img_save_path)
             imageout.save(img_save_path)
 
 def main(input_path_testA, output_path_testA, model_path):
@@ -283,40 +282,20 @@ def main(input_path_testA, output_path_testA, model_path):
 
     # testA_set = onlinezkxt(root=input_path_testA, transform=T)
     # testA_set = vaihingenloader(root=args.root, split='test')
-    testA_set = uavidloader(root=input_path_testA, split=split_conf)
+    testA_set = udd6loader(root=input_path_testA, split='test')
     testA_loader = DataLoader(testA_set, batch_size=1, shuffle=False, num_workers=2, pin_memory=True)
 
     # testB_set = onlinezkxt(root=input_path_testB, transform=T)
     # testB_loader = DataLoader(testB_set, batch_size=1, shuffle=False, num_workers=1, pin_memory=True)
 
-    # FCN
+    # deeplab = encoding.models.get_model('gffnet_ResNeSt101_ADE', pretrained=False)
     # from network.fcn import VGGNet, FCN32s, FCN16s, FCN8s, FCNs
     # vgg_model = VGGNet(requires_grad=True, remove_fc=False).cuda()
     # model = FCN8s(pretrained_net=vgg_model, n_class=8).cuda()
-
-    # SegNet
     # from network.segnet import SegNet
-    # model = SegNet(3,num_classes).cuda()
-
-    # from network.net.Unet import UNet
-    # model =UNet(n_channels=3, n_classes=num_classes ).cuda()
     
-    # Efficient Net
-    # model = model_now.from_name('efficientnet-b1',override_params={'num_classes' : 8}).cuda()
-
-    # DeepLab-V3+
-    # from network.net import deeplab_resnet50
-    # model = deeplab_resnet50.DeepLabv3_plus(
-    #                 nInputChannels=3,
-    #                 n_classes=8,
-    #                 os=8,
-    #                 pretrained=True
-    #                 ).cuda()
-
-#     new_dict = {k: v for k,v in pretrain_state_dict.state_dict().items() if k in model_dict}
-# # del new_dict['outconv_320_8']
-#     model_dict.update(new_dict)
-#     model.load_state_dict(model_dict)
+    # model = model_now.from_name('efficientnet-b1',override_params={'num_classes' : 6}).cuda()
+    model = build_network(model_init, num_classes)
 
     # model = deeplab_resnet50.DeepLabv3_plus(
     #                     nInputChannels=3,
@@ -331,20 +310,11 @@ def main(input_path_testA, output_path_testA, model_path):
     # print(checkpoint)
     # model = EfficientNet_1_Nof.from_name('efficientnet-b1').cuda()
 
-    model = build_network(model_init, num_classes)
-    model_dict = model.state_dict()
-
 
     checkpoint = torch.load(model_path ,map_location="cuda:0")
-
-    new_dict = {k: v for k,v in checkpoint.items() if k in model_dict}
-    # print(checkpoint.state_dict())
-    # del checkpoint['outconv_320_6']
-    model_dict.update(new_dict)
-    checkpoint = model_dict
     # new_state_dict = OrderedDict()
     # for k, v in checkpoint.items():
-    #     # name = k[7:] # remove 'module.'
+    #     name = k[7:] # remove 'module.'
     #     new_state_dict[name] = v
     # model.load_state_dict(new_state_dict)
     model.load_state_dict(checkpoint) 
@@ -375,24 +345,19 @@ if __name__ == '__main__':
     from os.path import basename
     from PIL import Image
     import sys
+    # from network.efficientnet.Efficientnet_DAN import EfficientNet_1_PAM as model_now
     from network import build_network
-    # from network.efficientnet.Efficientnet_DAN import EfficientNet_1_up as model_now
-    os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+    model_init = "b1_cam"
+    num_classes = 6
+    os.environ["CUDA_VISIBLE_DEVICES"] = "4"
 
-    input_path_testA = './data/uavid'
+    input_path_testA = './data/udd6_crop'
 
-    # output_path_testA = './data/results/b1_dan_2'
-    output_path_testA = "./data_paper/uavid/segnet"
+    output_path_testA = './data_paper/udd/cam_3'
 
-    model_path = 'runs_uavid/segnet_4e-3/segnet_100bs4gpu3/model.pth'
-
-    num_classes = 8
-    model_init = "segnet"
+    model_path = 'runs_udd6/b1_cam_100_3/b1_cambs8gpu6/model.pth'
 
     cudnn.benchmark = True
     cudnn.enabled = True
-    num_classes = 8
-
-    split_conf = "val"
 
     main(input_path_testA,  output_path_testA, model_path)

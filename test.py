@@ -103,6 +103,9 @@ def main(args, logger):
     logger.info('======> building network')
 
     model = build_network(MODEL_INIT, NUM_CLASSES)
+    pretrain_state_dict = torch.load(model_test, map_location="cuda:0")
+
+    model.load_state_dict(pretrain_state_dict)
     if torch.cuda.device_count() > 1:
 
         device_ids = list(map(int, args.gpu.split(',')))
@@ -135,84 +138,34 @@ def main(args, logger):
     epoch = 0
     train_1_epoch = Trainer(args, train_loader, model, criterion, optimizer, epoch, logger)
     testing = Tester(args, test_loader, model, criterion, optimizer, epoch, logger)
-    while flag == True:
-        for epoch in range(start_epoch, args.max_epochs):
-            print('======> Epoch {} starting train.'.format(epoch))
-            logger.info('======> Epoch {} starting train.'.format(epoch))
-            # print(logger)
-            epoch_start = timeit.default_timer()
-            train_1_epoch.train_net(epoch)
-            train_end = timeit.default_timer()
-            print("training time:", 1.0*(train_end-epoch_start)/3600)
+    
+    score, class_iou, class_F1 = testing.test_net()
 
-            print('======> Epoch {} train finish.'.format(epoch))
-            logger.info('======> Epoch {} train finish.'.format(epoch))
+    for k, v in score.items():
+        print('{}: {:.5f}'.format(k, v))
+        logger.info('======>{0:^18} {1:^10}'.format(k, v))
+    
+    print('Now print class iou')
+    for k, v in class_iou.items():
+        print('{}: {:.5f}'.format(k, v))
+        logger.info('======>{0:^18} {1:^10}'.format(k, v))
 
-            if epoch % 1 == 0 or (epoch + 1) == args.max_epochs:
-                print('Now Epoch {}, starting evaluate on Test dataset.'.format(epoch))
-                logger.info('Now starting evaluate on Test dataset.')
-                print('length of test set:', len(test_loader))
-                logger.info('length of test set: {}'.format(len(test_loader)))
+    print('Now print class_F1')
+    for k, v in class_F1.items():
+        print('{}: {:.5f}'.format(k, v))
+        logger.info('======>{0:^18} {1:^10}'.format(k, v))
+    
+    if score["Mean IoU : \t"] > best_mIoU:
+        best_mIoU = score["Mean IoU : \t"]
+        model_file_name = args.savedir + '/model.pth'
+        # torch.save(model.module.state_dict(), model_file_name)
+        best_epoch = epoch
+    
+    if score["Overall Acc : \t"] > best_overall:
+        best_overall = score["Overall Acc : \t"]
+        # save model in best overall Acc
                 
-                score, class_iou, class_F1 = testing.test_net()
-        
-                for k, v in score.items():
-                    print('{}: {:.5f}'.format(k, v))
-                    logger.info('======>{0:^18} {1:^10}'.format(k, v))
-                
-                print('Now print class iou')
-                for k, v in class_iou.items():
-                    print('{}: {:.5f}'.format(k, v))
-                    logger.info('======>{0:^18} {1:^10}'.format(k, v))
-
-                print('Now print class_F1')
-                for k, v in class_F1.items():
-                    print('{}: {:.5f}'.format(k, v))
-                    logger.info('======>{0:^18} {1:^10}'.format(k, v))
-                
-                if score["Mean IoU : \t"] > best_mIoU:
-                    best_mIoU = score["Mean IoU : \t"]
-                    model_file_name = args.savedir + '/model.pth'
-                    torch.save(model.module.state_dict(), model_file_name)
-                    best_epoch = epoch
-                
-                if score["Overall Acc : \t"] > best_overall:
-                    best_overall = score["Overall Acc : \t"]
-                    # save model in best overall Acc
-                
-                # TODO functionalize it 
-
-                if score["Mean F1 : \t"] > best_F1:
-                    best_F1 = score["Mean F1 : \t"]
-
-                print(f"best mean IoU: {best_mIoU}")
-                print(f"best overall : {best_overall}")
-                print(f"best F1: {best_F1}")
-                print(f"best epoch: {best_epoch}")
-                logger.info('best mean IoU: {}'.format(best_mIoU))
-                logger.info('best overall: {}'.format(best_overall))
-                logger.info('best F1: {}'.format(best_F1))
-                logger.info('best epoch: {}'.format(best_epoch))
-                epoch_end = timeit.default_timer()
-                print("evaluation time:", -1.0*(train_end - epoch_end)/3600)
-                
-
-#            #save the model
-#            model_file_name = args.savedir +'/model.pth'
-#            state = {"epoch": epoch+1, "model": model.state_dict()}
-#
-#            if (epoch + 1) == args.max_epochs or epoch % 5 == 0:
-#                print('======> Now begining to save model.')
-#                logger.info('======> Now begining to save model.')
-#                torch.save(state, model_file_name)
-#                print('======> Save done.')
-#                logger.info('======> Save done.')
-#
-        if (epoch + 1) == args.max_epochs:
-            # print('the best pred mIoU: {}'.format(best_pred))
-            flag = False
-            break
-
+             
 
 
 if __name__ == '__main__':
@@ -238,10 +191,11 @@ if __name__ == '__main__':
     parser.add_argument('--gpu', type=str, default=GPU, help="default GPU devices (3)")
 
     args = parser.parse_args()
+    model_test = "./runs_udd6/b1_nof_100_5/b1_nofbs8gpu0/model2.pth"
 
-    
+    RUN_ID = "test_"+"b1_nof_100_5"
     print('Now run_id {}'.format(RUN_ID))
-    args.savedir = os.path.join(args.savedir, str(RUN_ID))
+    args.savedir = os.path.join(args.savedir, str(RUN_ID), "test")
     print(args.savedir)
 
     if not os.path.exists(args.savedir):

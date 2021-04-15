@@ -74,3 +74,4 @@ def build_network(model_type, num_classes=8, pretrained=True):
 
     return model
 
+

@@ -253,7 +253,7 @@ if __name__ == '__main__':
         return rgb 
 
 
-    root = '../data/udd6_try'
+    root = '../data/udd6_crop'
 
     isprs = udd6loader(root=root, split='train')
     print((isprs))
