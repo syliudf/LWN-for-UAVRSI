@@ -347,15 +347,15 @@ if __name__ == '__main__':
     import sys
     # from network.efficientnet.Efficientnet_DAN import EfficientNet_1_PAM as model_now
     from network import build_network
-    model_init = "b1_cam"
+    model_init = "deeplabv3+_resnet101"
     num_classes = 6
-    os.environ["CUDA_VISIBLE_DEVICES"] = "4"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
     input_path_testA = './data/udd6_crop'
 
-    output_path_testA = './data_paper/udd/cam_3'
+    output_path_testA = './data_paper/udd/deeplab100_new8k'
 
-    model_path = 'runs_udd6/b1_cam_100_3/b1_cambs8gpu6/model.pth'
+    model_path = 'runs_udd6/deeplabv3+_resnet101_100_3/deeplabv3+_resnet101bs8gpu3/model.pth'
 
     cudnn.benchmark = True
     cudnn.enabled = True

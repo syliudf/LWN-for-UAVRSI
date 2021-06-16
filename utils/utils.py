@@ -121,6 +121,7 @@ def generate_param_report(logfile, param):
     log_file.close()
 
 def cross_entropy2d(logit, target, ignore_index=255, weight=None, size_average=True, batch_average=True):
+    # print(logit[0].size())
     n, c, h, w = logit.size()
     # logit = logit.permute(0, 2, 3, 1)
     target = target.squeeze(1)

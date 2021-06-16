@@ -50,7 +50,9 @@ def build_network(model_type, num_classes=8, pretrained=True):
                     os=8,
                     pretrained=True
                     ).cuda()
-
+    elif model_type == 'deeplabv3_resnet101':
+        from network.net import deeplabv3_resnet
+        model = deeplabv3_resnet.DeepLabv3(nInputChannels=3, n_classes=num_classes, os=16, pretrained=True, _print=True).cuda()
     elif model_type == 'deeplabv3+_resnet101':
         from network.net import deeplab_resnet
         model = deeplab_resnet.DeepLabv3_plus(
@@ -71,6 +73,28 @@ def build_network(model_type, num_classes=8, pretrained=True):
     elif model_type == "unet":
         from .net.Unet import UNet
         model =UNet(n_channels=3, n_classes=num_classes ).cuda()
+    elif model_type == "bisenetv2":
+        from network.bisenetv2 import BiSeNetV2
+        model = BiSeNetV2(n_classes=num_classes)
+    elif model_type == "unet_new":
+        from .net.unet_model import UNet
+        model =UNet(n_channels=3, n_classes=num_classes ).cuda()
+        model_dict = model.state_dict()
+        pretrain_state_dict = torch.hub.load('milesial/Pytorch-UNet', 'unet_carvana')
+        new_dict = {k: v for k,v in pretrain_state_dict.state_dict().items() if k in model_dict}
+        model_dict.update(new_dict)
+        model.load_state_dict(model_dict)
+    elif model_type == "dfa":
+        from network.dfanet import DFANet,load_backbone, XceptionA
+        ENCODER_CHANNEL_CFG=ch_cfg=[[8,48,96],
+                                [240,144,288],
+                                [240,144,288]]
+        net = DFANet(ENCODER_CHANNEL_CFG,decoder_channel=64,num_classes=num_classes).cuda()
+        bk=XceptionA(ch_cfg[0],num_classes=num_classes)
+        torch.save(bk.state_dict(),'./pretrained/dfa.pth')
+        
+        model = load_backbone(net,"pretrained/dfa.pth").cuda()
+
 
     return model
 

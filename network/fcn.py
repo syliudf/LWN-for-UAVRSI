@@ -215,48 +215,55 @@ def make_layers(cfg, batch_norm=False):
     return nn.Sequential(*layers)
 
 
+# if __name__ == "__main__":
+#     batch_size, n_class, h, w = 10, 20, 160, 160
+
+#     # test output size
+#     vgg_model = VGGNet(requires_grad=True)
+#     input = torch.autograd.Variable(torch.randn(batch_size, 3, 224, 224))
+#     output = vgg_model(input)
+#     assert output['x5'].size() == torch.Size([batch_size, 512, 7, 7])
+
+#     fcn_model = FCN32s(pretrained_net=vgg_model, n_class=n_class)
+#     input = torch.autograd.Variable(torch.randn(batch_size, 3, h, w))
+#     output = fcn_model(input)
+#     assert output.size() == torch.Size([batch_size, n_class, h, w])
+
+#     fcn_model = FCN16s(pretrained_net=vgg_model, n_class=n_class)
+#     input = torch.autograd.Variable(torch.randn(batch_size, 3, h, w))
+#     output = fcn_model(input)
+#     assert output.size() == torch.Size([batch_size, n_class, h, w])
+
+#     fcn_model = FCN8s(pretrained_net=vgg_model, n_class=n_class)
+#     input = torch.autograd.Variable(torch.randn(batch_size, 3, h, w))
+#     output = fcn_model(input)
+#     assert output.size() == torch.Size([batch_size, n_class, h, w])
+
+#     fcn_model = FCNs(pretrained_net=vgg_model, n_class=n_class)
+#     input = torch.autograd.Variable(torch.randn(batch_size, 3, h, w))
+#     output = fcn_model(input)
+#     assert output.size() == torch.Size([batch_size, n_class, h, w])
+
+#     print("Pass size check")
+
+#     # test a random batch, loss should decrease
+#     fcn_model = FCNs(pretrained_net=vgg_model, n_class=n_class)
+#     criterion = nn.BCELoss()
+#     optimizer = optim.SGD(fcn_model.parameters(), lr=1e-3, momentum=0.9)
+#     input = torch.autograd.Variable(torch.randn(batch_size, 3, h, w))
+#     y = torch.autograd.Variable(torch.randn(batch_size, n_class, h, w), requires_grad=False)
+#     for iter in range(10):
+#         optimizer.zero_grad()
+#         output = fcn_model(input)
+#         output = nn.functional.sigmoid(output)
+#         loss = criterion(output, y)
+#         loss.backward()
+#         print("iter{}, loss {}".format(iter, loss.data[0]))
+#         optimizer.step()
+
 if __name__ == "__main__":
-    batch_size, n_class, h, w = 10, 20, 160, 160
-
-    # test output size
-    vgg_model = VGGNet(requires_grad=True)
-    input = torch.autograd.Variable(torch.randn(batch_size, 3, 224, 224))
-    output = vgg_model(input)
-    assert output['x5'].size() == torch.Size([batch_size, 512, 7, 7])
-
-    fcn_model = FCN32s(pretrained_net=vgg_model, n_class=n_class)
-    input = torch.autograd.Variable(torch.randn(batch_size, 3, h, w))
-    output = fcn_model(input)
-    assert output.size() == torch.Size([batch_size, n_class, h, w])
-
-    fcn_model = FCN16s(pretrained_net=vgg_model, n_class=n_class)
-    input = torch.autograd.Variable(torch.randn(batch_size, 3, h, w))
-    output = fcn_model(input)
-    assert output.size() == torch.Size([batch_size, n_class, h, w])
-
-    fcn_model = FCN8s(pretrained_net=vgg_model, n_class=n_class)
-    input = torch.autograd.Variable(torch.randn(batch_size, 3, h, w))
-    output = fcn_model(input)
-    assert output.size() == torch.Size([batch_size, n_class, h, w])
-
-    fcn_model = FCNs(pretrained_net=vgg_model, n_class=n_class)
-    input = torch.autograd.Variable(torch.randn(batch_size, 3, h, w))
-    output = fcn_model(input)
-    assert output.size() == torch.Size([batch_size, n_class, h, w])
-
-    print("Pass size check")
-
-    # test a random batch, loss should decrease
-    fcn_model = FCNs(pretrained_net=vgg_model, n_class=n_class)
-    criterion = nn.BCELoss()
-    optimizer = optim.SGD(fcn_model.parameters(), lr=1e-3, momentum=0.9)
-    input = torch.autograd.Variable(torch.randn(batch_size, 3, h, w))
-    y = torch.autograd.Variable(torch.randn(batch_size, n_class, h, w), requires_grad=False)
-    for iter in range(10):
-        optimizer.zero_grad()
-        output = fcn_model(input)
-        output = nn.functional.sigmoid(output)
-        loss = criterion(output, y)
-        loss.backward()
-        print("iter{}, loss {}".format(iter, loss.data[0]))
-        optimizer.step()
+    vgg_model = VGGNet(requires_grad=True, remove_fc=True).cuda()
+    model = FCN8s(pretrained_net=vgg_model, n_class=6).cuda()
+    def cnt_params(model):
+        return sum(p.numel() for p in model.parameters())
+    print(cnt_params(model)/1e6)

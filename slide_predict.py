@@ -377,22 +377,23 @@ if __name__ == '__main__':
     import sys
     from network import build_network
     # from network.efficientnet.Efficientnet_DAN import EfficientNet_1_up as model_now
-    os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "4"
 
     input_path_testA = './data/uavid'
 
-    # output_path_testA = './data/results/b1_dan_2'
-    output_path_testA = "./data_paper/uavid/segnet"
+    output_path_testA = './data/results/deeplabv3+_resnet101_6_test'
+    # output_path_testA = "./data_paper/uavid/deeplabv3+_resnet101_3_2"
 
-    model_path = 'runs_uavid/segnet_4e-3/segnet_100bs4gpu3/model.pth'
+    model_path = 'runs_uavid/deeplabv3+_resnet101_100_6/deeplabv3+_resnet101bs8gpu4/model.pth'
 
     num_classes = 8
-    model_init = "segnet"
+    model_init = "deeplabv3+_resnet101"
 
     cudnn.benchmark = True
     cudnn.enabled = True
     num_classes = 8
 
-    split_conf = "val"
+    split_conf = "test"
 
     main(input_path_testA,  output_path_testA, model_path)
+###TODO:

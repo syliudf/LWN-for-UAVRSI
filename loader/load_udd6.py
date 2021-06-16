@@ -9,7 +9,7 @@ from PIL import Image, ImageOps, ImageFilter
 # from torch._C import uint8
 from torch.utils.data import Dataset
 
-
+from torch.nn.functional import nll_loss
 class udd6loader(Dataset):
 
     def __init__(self, root, split='train', crop_size=512, scale=False, rotate=True, HorizontalFlip=True, normalize=False, degree=10):

@@ -19,19 +19,20 @@ import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader
 from loader.load_vaihingen import vaihingenloader
 # from network.unet import UNet
-from network.efficientnet.Efficientnet_DAN import EfficientNet_1_Nof
+# from network.efficientnet.Efficientnet_DAN import EfficientNet_1_Nof
 import sys
 sys.path.append('./')
 
 def get_Hrrs_label():
     return np.asarray(
                       [
-              [255, 255, 255],  # 不透水面
-              [  0,   0, 255],  # 建筑物
-              [  0, 255, 255],  # 低植被
-              [  0, 255,   0],  # 树
-              [255, 255,   0],  # 车
-              [255,   0,   0],  # Clutter/background
+                        [255, 255, 255],  # 不透水面
+                        [  0,   0, 255],  # 建筑物
+                        [  0, 255, 255],  # 低植被
+                        [  0, 255,   0],  # 树
+                        [255, 255,   0],  # 车
+                        [255,   0,   0],  # Clutter/background
+                        [  0,   0,   0]   # ignore
                     ])
 
 def decode_segmap(label_mask, n_classes = 6):
@@ -293,7 +294,8 @@ def main(input_path_testA, output_path_testA, model_path):
     # model = FCN8s(pretrained_net=vgg_model, n_class=8).cuda()
     # from network.segnet import SegNet
     
-    model = model_now.from_name('efficientnet-b1',override_params={'num_classes' : 6}).cuda()
+    # model = model_now.from_name('efficientnet-b1',override_params={'num_classes' : 6}).cuda()
+    model = build_network(model_init, num_classes)
 
     # model = deeplab_resnet50.DeepLabv3_plus(
     #                     nInputChannels=3,
@@ -343,16 +345,21 @@ if __name__ == '__main__':
     from os.path import basename
     from PIL import Image
     import sys
-    from network.efficientnet.Efficientnet_DAN import EfficientNet_1_DAN as model_now
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    # from network.efficientnet.Efficientnet_DAN import EfficientNet_1_PAM as model_now
+    from network import build_network
+    model_init = "b1_dan"
+    num_classes = 6
+    os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
     input_path_testA = '/media/hdd1/IGARSS_2020_LiuSiyu/igarss/data/vaismall'
 
-    output_path_testA = './data/results_vai/vai_try'
+    output_path_testA = './data_paper/vai/dan_2'
 
-    model_path = 'runs_vai/b1_dan_100_0/b1_danbs8gpu1/model.pth'
+    model_path = 'runs_vai/b1_dan_500_2/b1_danbs8gpu5/model.pth'
 
     cudnn.benchmark = True
     cudnn.enabled = True
 
     main(input_path_testA,  output_path_testA, model_path)
+
+   

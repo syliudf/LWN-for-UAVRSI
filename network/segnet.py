@@ -4,6 +4,7 @@ Pytorch implementation of SegNet (https://arxiv.org/pdf/1511.00561.pdf)
 
 from __future__ import print_function
 from collections import OrderedDict
+# from main import main
 import torch
 import torch.nn as nn
 import torchvision.models as models
@@ -40,6 +41,8 @@ class SegNet(nn.Module):
         self.num_channels = input_channels
 
         self.vgg16 = models.vgg16(pretrained=True)
+
+        self.vgg16.classifier = nn.Identity()
 
 
         # Encoder layers
@@ -396,3 +399,8 @@ class SegNet(nn.Module):
         assert self.encoder_conv_42[0].bias.size() == self.vgg16.features[28].bias.size()
         self.encoder_conv_42[0].bias.data = self.vgg16.features[28].bias.data
 
+if __name__ == "__main__":
+    model = SegNet(3,8).cuda()
+    def cnt_params(model):
+        return sum(p.numel() for p in model.parameters())
+    print(cnt_params(model)/1e6)

@@ -191,9 +191,9 @@ if __name__ == '__main__':
     parser.add_argument('--gpu', type=str, default=GPU, help="default GPU devices (3)")
 
     args = parser.parse_args()
-    model_test = "./runs_udd6/b1_nof_100_5/b1_nofbs8gpu0/model2.pth"
+    model_test = "runs_udd6/deeplabv3+_resnet101_100_3/deeplabv3+_resnet101bs8gpu3/model.pth"
 
-    RUN_ID = "test_"+"b1_nof_100_5"
+    RUN_ID = "test_"+"deeplab_100_3"
     print('Now run_id {}'.format(RUN_ID))
     args.savedir = os.path.join(args.savedir, str(RUN_ID), "test")
     print(args.savedir)
