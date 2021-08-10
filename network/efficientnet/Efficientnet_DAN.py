@@ -1044,19 +1044,21 @@ class EfficientNet_1_CAM(nn.Module):
 
     def extract_features(self, inputs):
         """ Returns output of the final convolution layer """
+        print(inputs.size())
 
         # Stem
         x = self._swish(self._bn0(self._conv_stem(inputs)))
 
         # Blocks
         for idx, block in enumerate(self._blocks):
-            # print(idx)
+            print(idx)
+            print(x.size())
             drop_connect_rate = self._global_params.drop_connect_rate
             if drop_connect_rate:
                 drop_connect_rate *= float(idx) / len(self._blocks)
             x = block(x, drop_connect_rate=drop_connect_rate)
-            # print(x.size())
-            # print(x.size())
+            # 
+            print(x.size())
             if idx == 20:
                 x_192 = x
             if idx == 15:

@@ -31,9 +31,9 @@ model_dict.update(new_dict)
 
 model.load_state_dict(model_dict)
 checkpoint_name =  './pretrained/b1_cam_6.pth'
-torch.save(model,checkpoint_name)
+#torch.save(model,checkpoint_name)
 print(checkpoint_name)
-# print(model)
+#print(model)
 x = model.forward(torch.randn([1,3,512,512]))
 print(x.size())
 # print(x.size())

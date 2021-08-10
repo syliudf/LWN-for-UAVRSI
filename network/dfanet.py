@@ -289,6 +289,7 @@ def load_backbone(dfanet,backbone_path):
                 df_params[new_key]=bk_params[key]
             else:
                 print("uninit ",new_key)
+
                 
             new_key=new_key.replace('branch0','branch1')
             if bk_params[key].size()==df_params[new_key].size():
@@ -301,7 +302,8 @@ def load_backbone(dfanet,backbone_path):
                 df_params[new_key]=bk_params[key]
             else:
                 print("uninit ",new_key)
-                
+                print(bk_params[key].size())
+                print(df_params[new_key].size())
     dfanet.load_state_dict(df_params)
     return dfanet
 

@@ -18,8 +18,8 @@ import numpy as np
 import timeit
 import configparser
 import torch.optim as optim
-from tools.trainer import Trainer
-from tools.tester import Tester
+from tools.trainer_aux import Trainer
+from tools.tester_aux import Tester
 from torch.utils.data import DataLoader
 from metrics.metrics_uavid import runningScore, averageMeter
 import torch.backends.cudnn as cudnn

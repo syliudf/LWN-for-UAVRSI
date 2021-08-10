@@ -74,14 +74,21 @@ def tta_inference(inp, model, num_classes=6, scales=[1.0], flip=True):
 
 def model_inference(model, image, flip=True):
     output = model(image)
+    if aux:
+        output =output[0]
     if flip:
         fimg = image.flip(2)
-        output += model(fimg).flip(2)
+        if aux:
+            output += model(fimg)[0].flip(2)
+        else:
+            output += model(fimg).flip(2)
         fimg = image.flip(3)
-        output += model(fimg).flip(3)
+        if aux:
+            output += model(fimg)[0].flip(3)
+        else:
+            output += model(fimg).flip(3)
         return output/3
     return output
-
 def slide(model, scale_image, num_classes=6, crop_size=512, overlap=1/3, scales=[1.0], flip=True):
 
     N, C, H_, W_ = scale_image.shape
@@ -347,15 +354,16 @@ if __name__ == '__main__':
     import sys
     # from network.efficientnet.Efficientnet_DAN import EfficientNet_1_PAM as model_now
     from network import build_network
-    model_init = "b1_dan"
+    model_init = "erfnet"
     num_classes = 6
+    aux = 0
     os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
     input_path_testA = '/media/hdd1/IGARSS_2020_LiuSiyu/igarss/data/vaismall'
 
-    output_path_testA = './data_paper/vai/dan_2'
+    output_path_testA = './data/data_paper/vai/erf'
 
-    model_path = 'runs_vai/b1_dan_500_2/b1_danbs8gpu5/model.pth'
+    model_path = 'runs_vai/erfnet_500_0/erfnetbs8gpu2/model.pth'
 
     cudnn.benchmark = True
     cudnn.enabled = True

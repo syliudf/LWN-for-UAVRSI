@@ -55,8 +55,8 @@ class Tester(object):
                 image = image[:, 0:3, :, :].cuda()
                 label = label.cuda()
                 output = self.model(image)
-                loss = self.criterion(output, label)
-                tloss += loss.item()
+                # loss = self.criterion(output, label)
+                # tloss += loss.item()
                 # inter_time = time.time() - start_time
                 output = output.cpu().detach()[0].numpy()
                 gt = np.asarray(label[0].cpu().detach().numpy(), dtype=np.uint8)

@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .resnet import _ConvBnReLU, _ResLayer, _Stem
+from resnet import _ConvBnReLU, _ResLayer, _Stem
 
 
 class _ImagePool(nn.Module):

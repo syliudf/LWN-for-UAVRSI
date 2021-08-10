@@ -61,6 +61,10 @@ def build_network(model_type, num_classes=8, pretrained=True):
                     os=8,
                     pretrained=True
                     ).cuda()
+    elif model_type == 'deeplabv2_resnet101':
+        from network.net import deeplabv2
+        model = deeplabv2.DeepLabV2(
+        n_classes=num_classes, n_blocks=[3, 4, 23, 3], atrous_rates=[6, 12, 18, 24]).cuda()
     elif model_type == 'fcn':
         from network.fcn import VGGNet, FCN32s, FCN16s, FCN8s, FCNs
         vgg_model = VGGNet(requires_grad=True, remove_fc=False).cuda()
@@ -94,7 +98,13 @@ def build_network(model_type, num_classes=8, pretrained=True):
         torch.save(bk.state_dict(),'./pretrained/dfa.pth')
         
         model = load_backbone(net,"pretrained/dfa.pth").cuda()
-
+    elif model_type == "erfnet":
+        from network.erfnet import Net
+        from network.erfnet_imagenet import ERFNet as ERFNet_imagenet
+        pretrainedEnc = torch.nn.DataParallel(ERFNet_imagenet(1000))
+        pretrainedEnc.load_state_dict(torch.load("./pretrained/erfnet_encoder_pretrained.pth.tar")['state_dict'])
+        pretrainedEnc = next(pretrainedEnc.children()).features.encoder
+        model = Net(num_classes, encoder=pretrainedEnc).cuda()
 
     return model
 

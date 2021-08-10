@@ -74,11 +74,19 @@ def tta_inference(inp, model, num_classes=6, scales=[1.0], flip=True):
 
 def model_inference(model, image, flip=True):
     output = model(image)
+    if aux:
+        output =output[0]
     if flip:
         fimg = image.flip(2)
-        output += model(fimg).flip(2)
+        if aux:
+            output += model(fimg)[0].flip(2)
+        else:
+            output += model(fimg).flip(2)
         fimg = image.flip(3)
-        output += model(fimg).flip(3)
+        if aux:
+            output += model(fimg)[0].flip(3)
+        else:
+            output += model(fimg).flip(3)
         return output/3
     return output
 
@@ -347,15 +355,16 @@ if __name__ == '__main__':
     import sys
     # from network.efficientnet.Efficientnet_DAN import EfficientNet_1_PAM as model_now
     from network import build_network
-    model_init = "deeplabv3+_resnet101"
+    model_init = "deeplabv3_resnet101"
     num_classes = 6
+    aux = 0
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
     input_path_testA = './data/udd6_crop'
 
-    output_path_testA = './data_paper/udd/deeplab100_new8k'
+    output_path_testA = './data/data_paper/udd/dplbv3'
 
-    model_path = 'runs_udd6/deeplabv3+_resnet101_100_3/deeplabv3+_resnet101bs8gpu3/model.pth'
+    model_path = 'runs_udd6/deeplabv3_resnet101_100_1/deeplabv3_resnet101bs8gpu0/model.pth'
 
     cudnn.benchmark = True
     cudnn.enabled = True
