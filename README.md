@@ -57,20 +57,20 @@ Light-Weight Semantic Segmentation Network for UAV Remote Sensing Images
   data/uavid
   |-- train
   |   |-- image
-  |	|	|-- seq1_000000.png
-  |	|	|-- ...
+  |   |   |-- seq1_000000.png
+  |   |   |-- ...
   |   |-- label
-  |	|	|-- seq1_000000.png
-  |	|	|-- ...
+  |   |   |-- seq1_000000.png
+  |   |   |-- ...
   |-- val
   |   |-- image
-  |	|	|-- seq16_000000.png
-  |	|	|-- ...
+  |   |   |-- seq16_000000.png
+  |   |   |-- ...
   |   |-- label
-  |	|	|-- seq16_000000.png
-  |	|	|-- ...
+  |   |   |-- seq16_000000.png
+  |   |   |-- ...
   ```
 
--  Then set the parameters for training phase, such as `dataset`, `model_type` or  `data_root` on `config.ini`.
+-  Then set the parameters for training phase, such as `dataset`, `model_type` ,  `data_root`  and `learning rate`on `config.ini`.
 
 - `python main.py`
